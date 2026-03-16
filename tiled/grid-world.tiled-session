@@ -1,0 +1,105 @@
+{
+    "Map/SizeTest": {
+        "height": 4300,
+        "width": 2
+    },
+    "activeFile": "grid-world.tmx",
+    "expandedProjectPaths": [
+    ],
+    "fileStates": {
+        "/Users/lukelussier/Documents/GitHub/the-observatory-local/public/images/observatory.tmx": {
+            "scale": 1.1741,
+            "selectedLayer": 6,
+            "viewCenter": {
+                "x": 349.62950344945074,
+                "y": 288.7317945660506
+            }
+        },
+        "/Users/lukelussier/Documents/GitHub/the-observatory-local/public/images/observatory.tmx#Ground - normal": {
+            "scaleInDock": 1
+        },
+        "/Users/lukelussier/Documents/GitHub/the-observatory-local/public/images/observatory.tmx#Water - deep 1": {
+            "scaleInDock": 1
+        },
+        "/Users/lukelussier/Documents/GitHub/the-observatory-local/public/images/observatory.tmx#dungeon-props": {
+            "scaleInDock": 1
+        },
+        "/Users/lukelussier/Documents/GitHub/the-observatory-local/public/images/observatory.tmx#floor": {
+            "scaleInDock": 1
+        },
+        "/Users/lukelussier/Documents/GitHub/the-observatory-local/public/images/observatory.tmx#grass-combo": {
+            "scaleInDock": 1
+        },
+        "/Users/lukelussier/Documents/GitHub/the-observatory-local/public/images/observatory.tmx#grass-dark-1": {
+            "scaleInDock": 1
+        },
+        "/Users/lukelussier/Documents/GitHub/the-observatory-local/public/images/observatory.tmx#grass-dark-2": {
+            "scaleInDock": 1
+        },
+        "/Users/lukelussier/Documents/GitHub/the-observatory-local/public/images/observatory.tmx#grass-light-1": {
+            "scaleInDock": 1
+        },
+        "/Users/lukelussier/Documents/GitHub/the-observatory-local/public/images/observatory.tmx#grass-light-2": {
+            "scaleInDock": 1
+        },
+        "/Users/lukelussier/Documents/GitHub/the-observatory-local/public/images/observatory.tmx#props": {
+            "scaleInDock": 1
+        },
+        "/Users/lukelussier/Documents/GitHub/the-observatory-local/public/images/observatory.tmx#structure": {
+            "scaleInDock": 1
+        },
+        "grid-world.tmx": {
+            "scale": 1.6518,
+            "selectedLayer": 13,
+            "viewCenter": {
+                "x": 218.24676110909311,
+                "y": 110.18283085119263
+            }
+        },
+        "grid-world.tmx#dungeon-props": {
+            "scaleInDock": 1.1561
+        },
+        "grid-world.tmx#floor": {
+            "scaleInDock": 1.5346
+        },
+        "grid-world.tmx#general-props": {
+            "scaleInDock": 3.1243
+        },
+        "grid-world.tmx#grass": {
+            "scaleInDock": 3.3038
+        },
+        "grid-world.tmx#ground": {
+            "scaleInDock": 2.5861
+        },
+        "grid-world.tmx#structure": {
+            "scaleInDock": 1.997
+        },
+        "grid-world.tmx#wall": {
+            "scaleInDock": 1.707
+        },
+        "grid-world.tmx#water": {
+            "scaleInDock": 5.34
+        }
+    },
+    "last.exportedFilePath": "/Users/lukelussier/Documents/GitHub/grid-world/tiled",
+    "last.imagePath": "/Users/lukelussier/Documents/GitHub/grid-world/tiled",
+    "map.height": 36,
+    "map.lastUsedExportFilter": "JSON map files (*.tmj *.json)",
+    "map.lastUsedFormat": "tmx",
+    "map.tileHeight": 16,
+    "map.tileWidth": 16,
+    "map.width": 64,
+    "openFiles": [
+        "grid-world.tmx"
+    ],
+    "project": "grid-world.tiled-project",
+    "recentFiles": [
+        "grid-world.tmx",
+        "/Users/lukelussier/Documents/GitHub/the-observatory-local/public/images/observatory.tmx"
+    ],
+    "tileset.embedInMap": true,
+    "tileset.tileSize": {
+        "height": 16,
+        "width": 16
+    }
+}
