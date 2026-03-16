@@ -12,9 +12,7 @@ const ZOOM = 2;
 const playerAnimations = {
     idle: { src: "img/player-idle.png", frames: { max: 4 } },
     walking: { src: "img/player-walk.png", frames: { max: 8 } },
-    climbing: { src: "img/player-climbing.png", frames: { max: 4 } },
-    falling: { src: "img/player-falling.png", frames: { max: 4 } },
-    jumping: { src: "img/player-jumping.png", frames: { max: 4 } }
+    mining: { src: "img/player-pickaxe.png", frames: { max: 6 } },
 }
 
 
@@ -101,6 +99,17 @@ const rock = new InteractiveObject({
     }
 })
 
+const forgeImage = new Image();
+forgeImage.src = "img/forge.png"
+
+const forge = new InteractiveObject({
+    image: forgeImage,
+    position: {
+        column: 23,
+        row: 5
+    }
+})
+
 function serverTick() {
     const event = new Event("tick");
     document.dispatchEvent(event);
@@ -142,9 +151,32 @@ function getActionsForTile(row, column) {
     }
     if (row === rock.position.row && column === rock.position.column) {
         actions.push({
-            label: "Examine",
+            label: "Mine Tin Rock",
+            handler: () => {
+                player.targetRow = row;
+                player.targetColumn = column;
+                player.generatePathway();
+                player.isMining = true;
+                customContextMenu.style.display = 'none';
+            }
+        });
+        actions.push({
+            label: "Examine Tin Rock",
             handler: () => {
                 console.log("Big ol' rock");
+                customContextMenu.style.display = 'none';
+            }
+        });
+    }
+
+    if (row === forge.position.row && column === forge.position.column) {
+        actions.push({
+            label: "Smelt Tin Ore",
+            handler: () => {
+                player.targetRow = row;
+                player.targetColumn = column;
+                player.generatePathway();
+                player.isSmelting = true;
                 customContextMenu.style.display = 'none';
             }
         });
@@ -219,6 +251,8 @@ addEventListener('click', (e) => {
 
 document.addEventListener("tick", (e) => {
     player.movePlayer();
+    player.mineRock();
+    player.smeltOre();
 });
 
 function animate() {

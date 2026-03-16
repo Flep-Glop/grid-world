@@ -110,6 +110,10 @@ class Player {
             this.height = this.image.height;
         };
 
+        this.inventory = [];
+        this.isMining = false;
+        this.isSmelting = false;
+        this.smeltingProgress = 0;
         this.queueSet = [];
         this.closedSet = [];
         this.collisionsMap = [];
@@ -284,6 +288,39 @@ class Player {
             this.setState("idle");
         }
     }
+
+    mineRock() {
+        if (!this.isMining) return;
+
+        this.setState("mining");
+        let miningResult = Math.floor(Math.random() * 5);
+        console.log("Mining!", miningResult);
+
+        if (miningResult === 1) {
+            this.isMining = false;
+            this.setState("idle");
+            console.log("You mined a tin!");
+            this.inventory.push("tin ore");
+        }
+    }
+
+    smeltOre() {
+        if (!this.isSmelting) return;
+        if (this.inventory.includes("tin ore")) {
+            this.setState("smelting");
+            this.smeltingProgress++;
+            console.log("Smelting!", this.smeltingProgress);
+            if (this.smeltingProgress >= 3) {
+                this.isSmelting = false;
+                this.smeltingProgress = 0;
+                this.setState("idle");
+                console.log("You smelted a tin ingot!");
+                this.inventory.shift();
+                this.inventory.push("tin ingot");
+            }
+        }
+    }
+
 
     // Draw the storedPath
     drawStoredPath() {
