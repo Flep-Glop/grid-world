@@ -30,6 +30,7 @@ canvas {
     text-align: left;
     color: #b0b0b0;
     background-color: #000000;
+    display: none;
 }
 
 #customContextMenu ul:hover {

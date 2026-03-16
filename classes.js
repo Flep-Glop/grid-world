@@ -8,7 +8,6 @@ class Sprite {
             this.width = this.image.width / this.frames.max;
             this.height = this.image.height;
         };
-        this.moving = false;
         this.sprites = sprites;
     }
 
@@ -92,8 +91,12 @@ class InteractiveObject {
 }
 
 class Player {
-    constructor({ image, position }) {
-        this.image = image;
+    constructor({ sprites, initialState, position, offset }) {
+        this.sprites = sprites;
+        const initial = this.sprites[initialState];
+        this.image = initial.image;
+        this.currentState = initialState;
+        this.frames = { max: initial.frames.max, val: 0, elapsed: 0 };
         this.position = position;
         this.startRow = position.row;
         this.startColumn = position.column;
@@ -101,6 +104,11 @@ class Player {
         this.currentColumn = 0;
         this.targetRow = 0;
         this.targetColumn = 0;
+        this.offset = offset;
+        this.image.onload = () => {
+            this.width = this.image.width / this.frames.max;
+            this.height = this.image.height;
+        };
 
         this.queueSet = [];
         this.closedSet = [];
@@ -246,9 +254,23 @@ class Player {
         }
     }
 
+    setState(stateName) {
+        if (this.currentState === stateName) return;
+
+        const animation = this.sprites[stateName];
+        if (!animation) return;
+
+        this.frames.max = animation.frames.max;
+        this.frames.val = 0;
+        this.frames.elapsed = 0;
+        this.image = animation.image;
+        this.currentState = stateName;
+    }
+
     // Move the player along the storedPath
     movePlayer() {
         if (this.storedPath.length > 0) {
+            this.setState("walking");
             let path = this.storedPath[0].split("x");
             let pathRow = Number(path[0]);
             let pathColumn = Number(path[1]);
@@ -257,6 +279,9 @@ class Player {
             this.startRow = pathRow;
             this.startColumn = pathColumn;
             this.storedPath.shift();
+        }
+        else {
+            this.setState("idle");
         }
     }
 
@@ -270,19 +295,27 @@ class Player {
             c.fillRect(pathColumn * TILE_SIZE, pathRow * TILE_SIZE, TILE_SIZE, TILE_SIZE);
         }
     }
+
     // Draw the player
     draw() {
         c.drawImage(
             this.image,
+            this.frames.val * (this.image.width / this.frames.max),
             0,
-            0,
-            this.image.width,
+            this.image.width / this.frames.max,
             this.image.height,
-            this.position.column * TILE_SIZE,
-            this.position.row * TILE_SIZE,
-            TILE_SIZE,
-            TILE_SIZE
+            this.position.column * TILE_SIZE - this.offset.x,
+            this.position.row * TILE_SIZE - this.offset.y,
+            this.image.width / this.frames.max,
+            this.image.height
         )
+        if (this.frames.max > 1) {
+            this.frames.elapsed++
+        }
+        if (this.frames.elapsed % 20 === 0) {
+            if (this.frames.val < this.frames.max - 1) this.frames.val++
+            else this.frames.val = 0
+        }
     }
 }
 
