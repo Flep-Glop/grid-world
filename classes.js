@@ -90,6 +90,27 @@ class InteractiveObject {
 
 }
 
+class experienceDrop {
+    constructor({ skill, amount, position, frameCount }) {
+        this.skill = skill;
+        this.amount = amount;
+        this.position = {
+            x: position.x,
+            y: position.y
+        },
+        this.frameCount = 0;
+    }
+
+    draw() {
+        c.fillStyle = 'rgb(255, 255, 255)'
+        c.fillText(this.skill + ": " +this.amount + " XP",
+            this.position.x,
+            this.position.y - this.frameCount * 0.1)
+        this.frameCount++;
+    }
+}
+
+
 class Player {
     constructor({ sprites, initialState, position, offset }) {
         this.sprites = sprites;
@@ -282,6 +303,8 @@ class Player {
             this.position.row = pathRow;
             this.startRow = pathRow;
             this.startColumn = pathColumn;
+            localSave.position.column = pathColumn;
+            localSave.position.row = pathRow;
             this.storedPath.shift();
         }
         else {
@@ -293,14 +316,17 @@ class Player {
         if (!this.isMining) return;
 
         this.setState("mining");
-        let miningResult = Math.floor(Math.random() * 5);
+        let miningResult = Math.floor(Math.random() * 2);
         console.log("Mining!", miningResult);
 
         if (miningResult === 1) {
             this.isMining = false;
             this.setState("idle");
             console.log("You mined a tin!");
+            xpDrops.push(tinOreDrop);
+            localSave.inventory.push("tin ore");
             this.inventory.push("tin ore");
+            localSave.miningXP += 1;
         }
     }
 

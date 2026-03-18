@@ -8,6 +8,8 @@ const MAP_ROWS = 36;
 const COLLISION_TILE_ID = 4516;
 const ZOOM = 2;
 
+let cameraX = 0;
+let cameraY = 0;
 
 const playerAnimations = {
     idle: { src: "img/player-idle.png", frames: { max: 4 } },
@@ -15,6 +17,30 @@ const playerAnimations = {
     mining: { src: "img/player-pickaxe.png", frames: { max: 6 } },
 }
 
+let localSave = {
+    inventory: [],
+    miningXP: 0,
+    smeltingXP: 0,
+    position: {
+        row: 6,
+        column: 12
+    }
+}
+
+function saveLocalSave() {
+    localStorage.setItem("localSave", JSON.stringify(localSave));
+}
+
+if (localStorage.getItem("localSave")) {
+    loadLocalSave();
+    console.log("Local save loaded");
+}
+
+function loadLocalSave() {
+    localSave = JSON.parse(localStorage.getItem("localSave"));
+}
+
+console.log(localSave);
 
 function preloadImages(playerAnimations) {
     const loaded = {};
@@ -63,8 +89,8 @@ const player = new Player({
     sprites: playerSprites,
     initialState: "idle",
     position: {
-        row: 6,
-        column: 12
+        row: localSave.position.row,
+        column: localSave.position.column
     },
     frames: {
         max: 4
@@ -98,6 +124,18 @@ const rock = new InteractiveObject({
         row: 5
     }
 })
+
+
+let xpDrops = [];
+
+const tinOreDrop = new experienceDrop({
+    skill: "Mining",
+    amount: 1,
+    position: {
+        x: cameraX + 100,
+        y: cameraY + 100
+    }
+});
 
 const forgeImage = new Image();
 forgeImage.src = "img/forge.png"
@@ -190,10 +228,6 @@ function getActionsForTile(row, column) {
     }
 }
 
-
-let cameraX = 0;
-let cameraY = 0;
-
 addEventListener('click', (e) => {
     const rect = canvas.getBoundingClientRect();
     const scaleX = canvas.width / rect.width;
@@ -249,10 +283,20 @@ addEventListener('click', (e) => {
     customContextMenu.style.display = 'none';
 });
 
+let tickCount = 0;
+
 document.addEventListener("tick", (e) => {
     player.movePlayer();
     player.mineRock();
     player.smeltOre();
+    if (xpDrops.length > 0) {
+        if (tickCount >= 8) {
+            xpDrops.shift();
+        }
+    tickCount++;
+    }
+    saveLocalSave();
+    console.log(localSave);
 });
 
 function animate() {
@@ -262,6 +306,11 @@ function animate() {
     cameraX = player.position.column * TILE_SIZE - canvas.width / ZOOM / 2;
     cameraY = player.position.row * TILE_SIZE - canvas.height / ZOOM / 2;
 
+    xpDrops.forEach(xpDrop => {
+        xpDrop.position.x = cameraX + 430;
+        xpDrop.position.y = cameraY + 80;
+    });
+    
     c.save();
     c.scale(ZOOM, ZOOM);
     c.imageSmoothingEnabled = false;
@@ -272,6 +321,9 @@ function animate() {
     player.drawStoredPath();
     player.draw();
     rock.draw();
+    xpDrops.forEach(xpDrop => {
+        xpDrop.draw();
+    });
     // player.boundaries.forEach(boundary => {
     //     boundary.draw()
     // });

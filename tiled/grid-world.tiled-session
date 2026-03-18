@@ -49,21 +49,21 @@
             "scaleInDock": 1
         },
         "grid-world.tmx": {
-            "scale": 1.6518,
-            "selectedLayer": 13,
+            "scale": 2.0965,
+            "selectedLayer": 6,
             "viewCenter": {
-                "x": 218.24676110909311,
-                "y": 110.18283085119263
+                "x": 132.12497018840926,
+                "y": 56.76126878130218
             }
         },
         "grid-world.tmx#dungeon-props": {
-            "scaleInDock": 1.1561
+            "scaleInDock": 2.4626
         },
         "grid-world.tmx#floor": {
             "scaleInDock": 1.5346
         },
         "grid-world.tmx#general-props": {
-            "scaleInDock": 3.1243
+            "scaleInDock": 1.8507
         },
         "grid-world.tmx#grass": {
             "scaleInDock": 3.3038
