@@ -63,8 +63,8 @@ class Item {
 }
 
 class InventoryUI {
-    constructor({ inventory }) {
-        this.inventory = inventory;
+    constructor({ inventoryItems, full}) {
+        this.inventoryItems = inventoryItems;
         this.slotSize = 16;
         this.slotRows = 7;
         this.slotColumns = 4;
@@ -82,7 +82,7 @@ class InventoryUI {
     draw() {
         c.fillStyle = "rgba(0, 0, 0, 0.5)";
         c.fillRect(this.position.x, this.position.y, this.width, this.height)
-        for (let i = 0; i < this.inventory.length; i++) {
+        for (let i = 0; i < this.inventoryItems.length; i++) {
             const column = i % this.slotColumns;
             const row = Math.floor(i / this.slotColumns);
             c.drawImage(
@@ -179,9 +179,9 @@ class Player {
             this.height = this.image.height;
         };
 
-        this.inventory = [];
         this.isMining = false;
         this.isSmelting = false;
+        this.isPickingUp = false;
         this.smeltingProgress = 0;
         this.queueSet = [];
         this.closedSet = [];
@@ -277,8 +277,12 @@ class Player {
         while (this.queueSet.length > 0) {
             this.sortQueue();
             let queueKey = this.queueSet[0];
+            if (startKey === targetKey) {
+                this.storedPath = [];
+                return;
+            }
             // If the queueKey is already in closedSet
-            if (this.closedSet.includes(queueKey)) {
+            else if (this.closedSet.includes(queueKey)) {
                 this.queueSet.shift();
                 continue;
             }
@@ -359,7 +363,7 @@ class Player {
             this.setState("idle");
         }
     }
-
+    
     mineRock() {
         if (!this.isMining) return;
 
@@ -372,35 +376,51 @@ class Player {
             this.setState("idle");
             console.log("You mined a tin!");
             xpDrops.push(tinOreDrop)
-            if (!localSave.full === true) {
-                localSave.inventory.push("tin ore");
+            const emptySlot = findEmptyInventorySlot();
+            if (checkInventoryFull() === false) {
+                localSave.inventoryItems[emptySlot] = ("tin ore");
                 console.log("Inventory not full, adding tin ore");
             }
             else {
+                dropItem(tinOreImage, this.position);
                 console.log("Inventory full, dropping tin ore");
             }
-            this.inventory.push("tin ore");
             localSave.miningXP += 1;
         }
     }
 
     smeltOre() {
         if (!this.isSmelting) return;
-        if (this.inventory.includes("tin ore")) {
-            this.setState("smelting");
-            this.smeltingProgress++;
-            console.log("Smelting!", this.smeltingProgress);
-            if (this.smeltingProgress >= 3) {
-                this.isSmelting = false;
-                this.smeltingProgress = 0;
-                this.setState("idle");
-                console.log("You smelted a tin ingot!");
-                this.inventory.shift();
-                this.inventory.push("tin ingot");
-            }
-        }
+        //     this.setState("smelting");
+        //     this.smeltingProgress++;
+        //     console.log("Smelting!", this.smeltingProgress);
+        //     if (this.smeltingProgress >= 3) {
+        //         this.isSmelting = false;
+        //         this.smeltingProgress = 0;
+        //         this.setState("idle");
+        //         console.log("You smelted a tin ingot!");
+        //     }
+        // }
     }
 
+    pickUpItem() {
+        if (!this.isPickingUp) return;
+        else if (checkInventoryFull() === true) {
+            console.log("Inventory full, cannot pick up item");
+            this.isPickingUp = false;
+            return;
+        }
+        else {
+            const containsItem = (item) => item.position.row === this.targetRow && item.position.column === this.targetColumn;
+            const item = droppedItems.find(containsItem);
+            const itemIndex = droppedItems.indexOf(item);
+            droppedItems.splice(itemIndex, 1);
+            console.log("Picking up item: " + item);
+            const emptySlot = findEmptyInventorySlot();
+            localSave.inventoryItems[emptySlot] = item;
+            this.isPickingUp = false;
+        }
+    }
 
     // Draw the storedPath
     drawStoredPath() {
@@ -444,5 +464,30 @@ class Boundary {
     draw() {
         c.fillStyle = 'rgba(255, 0, 0, 0.5)'
         c.fillRect(this.position.x, this.position.y, TILE_SIZE, TILE_SIZE)
+    }
+}
+
+class DroppedItem {
+    constructor({ image, position }) {
+        this.image = image;
+        this.position = {
+            column: position.column,
+            row: position.row
+        };
+        this.width = this.image.width;
+        this.height = this.image.height;
+    }
+    draw() {
+        c.drawImage(
+            this.image,
+            0,
+            0,
+            this.image.width,
+            this.image.height,
+            this.position.column * TILE_SIZE,
+            this.position.row * TILE_SIZE,
+            this.width,
+            this.height
+        )
     }
 }

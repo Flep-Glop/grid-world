@@ -18,7 +18,14 @@ const playerAnimations = {
 }
 
 let localSave = {
-    inventory: [],
+    inventoryItems: [
+        null, null, null, null, 
+        null, null, null, null, 
+        null, null, null, null, 
+        null, null, null, null, 
+        null, null, null, null, 
+        null, null, null, null, 
+        null, null, null, null ],
     miningXP: 0,
     smeltingXP: 0,
     position: {
@@ -35,7 +42,15 @@ function loadLocalSave() {
     localSave = JSON.parse(localStorage.getItem("localSave"));
 }
 
+function clearLocalSave() {
+    localStorage.removeItem("localSave");
+}
+
 if (localStorage.getItem("localSave")) {
+// nuke option if save is bugged
+    // clearLocalSave();
+    // saveLocalSave();
+    // console.log("Local save cleared");
     loadLocalSave();
     console.log("Local save loaded");
 }
@@ -43,18 +58,12 @@ if (localStorage.getItem("localSave")) {
 console.log(localSave);
 
 const inventory = new InventoryUI({
-    inventory: localSave.inventory,
+    inventoryItems: localSave.inventoryItems,
     full: false
 })
 
 function checkInventoryFull() {
-    if (localSave.inventory.length >= 28) {
-        localSave.full = true;
-        localSave.inventory.length = 28;
-    }
-    else {
-        localSave.full = false;
-    }
+    return !localSave.inventoryItems.includes(null);
 }
 
 function getLevel(xp) {
@@ -176,6 +185,8 @@ const tinOreDrop = new experienceDrop({
     }
 });
 
+const tinOreImage = new Image();
+tinOreImage.src = "img/tin-ore.png"
 
 
 const forgeImage = new Image();
@@ -189,16 +200,64 @@ const forge = new InteractiveObject({
     }
 })
 
+droppedItems = [];
+
+
+function dropItem(image, position) {
+    const droppedItem = new DroppedItem({
+        image: image,
+        position: {
+            column: position.column,
+            row: position.row
+        }
+    })
+    droppedItems.push(droppedItem);
+}
+
 function serverTick() {
     const event = new Event("tick");
     document.dispatchEvent(event);
 }
 
+function findEmptyInventorySlot() {
+    const emptySlot = localSave.inventoryItems.findIndex(item => item === null);
+    return emptySlot;
+};
+
+
+
+// for (let i = 0; i < this.inventory.length; i++) {
+//     const column = i % this.slotColumns;
+//     const row = Math.floor(i / this.slotColumns);
+    
+// }
+
+// function dropInventoryItem(inventoryItem) {
+//     const droppedInvItem = 
+// }
+
+
 const tickRate = setInterval(serverTick, 600);
 
+// function getActionsForInventory(inventoryItem) {
+//     customContextMenu.innerHTML = "";
+//     const actions = [
+//         {
+//             label: "Drop",
+//             handler: () => {
+//                 dropInventoryItem(inventoryItem);
+//             }
+
+//         }
+//     ]
+
+// }
 
 function getActionsForTile(row, column) {
     customContextMenu.innerHTML = "";
+
+    const containsItem = (item) => item.position.row === row && item.position.column === column;
+
     const actions = [
         {
             label: "Walk Here",
@@ -212,18 +271,14 @@ function getActionsForTile(row, column) {
             }
         }
     ];
-
-    if (row === bookItem.position.row && column === bookItem.position.column) {
+    if (droppedItems.some(containsItem)) {
         actions.push({
             label: "Pick Up",
             handler: () => {
                 player.targetRow = row;
                 player.targetColumn = column;
                 player.generatePathway();
-                player.movePlayer();
-                bookItem.position.row = -10;
-                bookItem.position.column = -10;
-                console.log("Pick Up");
+                player.isPickingUp = true;
                 customContextMenu.style.display = 'none';
             }
         });
@@ -313,8 +368,7 @@ addEventListener('contextmenu', (e) => {
     contextTarget.row = Math.floor(worldY / TILE_SIZE);
     contextTarget.column = Math.floor(worldX / TILE_SIZE);
     getActionsForTile(contextTarget.row, contextTarget.column);
-
-
+    // getActionsForInventory();
     customContextMenu.style.top = `${e.pageY}px`;
     customContextMenu.style.left = `${e.pageX}px`;
     customContextMenu.style.display = 'block';
@@ -330,8 +384,8 @@ document.addEventListener("tick", (e) => {
     player.movePlayer();
     player.mineRock();
     player.smeltOre();
+    player.pickUpItem();
     saveLocalSave();
-    checkInventoryFull();
 });
 
 function animate() {
@@ -357,12 +411,15 @@ function animate() {
     backgroundSprite.draw();
     bookItem.draw();
     player.drawStoredPath();
-    player.draw();
     rock.draw();
     inventory.draw();
+    droppedItems.forEach(droppedItem => {
+        droppedItem.draw();
+    });
     xpDrops.forEach(xpDrop => {
         xpDrop.draw();
     });
+    player.draw();
     // player.boundaries.forEach(boundary => {
     //     boundary.draw()
     // });
