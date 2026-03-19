@@ -31,16 +31,55 @@ function saveLocalSave() {
     localStorage.setItem("localSave", JSON.stringify(localSave));
 }
 
+function loadLocalSave() {
+    localSave = JSON.parse(localStorage.getItem("localSave"));
+}
+
 if (localStorage.getItem("localSave")) {
     loadLocalSave();
     console.log("Local save loaded");
 }
 
-function loadLocalSave() {
-    localSave = JSON.parse(localStorage.getItem("localSave"));
+console.log(localSave);
+
+const inventory = new InventoryUI({
+    inventory: localSave.inventory,
+    full: false
+})
+
+function checkInventoryFull() {
+    if (localSave.inventory.length >= 28) {
+        localSave.full = true;
+        localSave.inventory.length = 28;
+    }
+    else {
+        localSave.full = false;
+    }
 }
 
-console.log(localSave);
+function getLevel(xp) {
+    if (xp < 5) {
+        return 1;
+    }
+    else if (xp >= 5 && xp < 10) {
+        return 2;
+    }
+    else if (xp >= 10 && xp < 15) {
+        return 3;
+    }
+    else if (xp >= 15 && xp < 20) {
+        return 4;
+    }
+    else if (xp >=20 && xp < 50) {
+        return 5;
+    }
+    else if (xp >= 50 && xp < 100) {
+        return 6;
+    }
+};
+
+console.log("Mining Level: " + getLevel(localSave.miningXP));
+
 
 function preloadImages(playerAnimations) {
     const loaded = {};
@@ -130,12 +169,14 @@ let xpDrops = [];
 
 const tinOreDrop = new experienceDrop({
     skill: "Mining",
-    amount: 1,
+    amount: ORES.tin.miningXP,
     position: {
         x: cameraX + 100,
         y: cameraY + 100
     }
 });
+
+
 
 const forgeImage = new Image();
 forgeImage.src = "img/forge.png"
@@ -289,14 +330,8 @@ document.addEventListener("tick", (e) => {
     player.movePlayer();
     player.mineRock();
     player.smeltOre();
-    if (xpDrops.length > 0) {
-        if (tickCount >= 8) {
-            xpDrops.shift();
-        }
-    tickCount++;
-    }
     saveLocalSave();
-    console.log(localSave);
+    checkInventoryFull();
 });
 
 function animate() {
@@ -310,7 +345,10 @@ function animate() {
         xpDrop.position.x = cameraX + 430;
         xpDrop.position.y = cameraY + 80;
     });
-    
+
+    inventory.position.x = cameraX + 440;
+    inventory.position.y = cameraY + 170;
+
     c.save();
     c.scale(ZOOM, ZOOM);
     c.imageSmoothingEnabled = false;
@@ -321,6 +359,7 @@ function animate() {
     player.drawStoredPath();
     player.draw();
     rock.draw();
+    inventory.draw();
     xpDrops.forEach(xpDrop => {
         xpDrop.draw();
     });
@@ -329,6 +368,7 @@ function animate() {
     // });
 
     c.restore();
+
 
 }
 animate();

@@ -62,6 +62,44 @@ class Item {
     }
 }
 
+class InventoryUI {
+    constructor({ inventory }) {
+        this.inventory = inventory;
+        this.slotSize = 16;
+        this.slotRows = 7;
+        this.slotColumns = 4;
+        this.slots = this.slotRows * this.slotColumns;
+        this.width = this.slotColumns * this.slotSize;
+        this.height = this.slotRows * this.slotSize;
+        this.position = {
+            x: 570,
+            y: 120
+        };
+        this.image = new Image();
+        this.image.src = `img/book.png`;
+    }
+
+    draw() {
+        c.fillStyle = "rgba(0, 0, 0, 0.5)";
+        c.fillRect(this.position.x, this.position.y, this.width, this.height)
+        for (let i = 0; i < this.inventory.length; i++) {
+            const column = i % this.slotColumns;
+            const row = Math.floor(i / this.slotColumns);
+            c.drawImage(
+                this.image,
+                0,
+                0,
+                this.slotSize,
+                this.slotSize,
+                this.position.x + column * this.slotSize,
+                this.position.y + row * this.slotSize,
+                this.slotSize,
+                this.slotSize
+            )
+        }
+    }
+}
+
 class InteractiveObject {
     constructor({ image, position }) {
         this.image = image;
@@ -91,7 +129,7 @@ class InteractiveObject {
 }
 
 class experienceDrop {
-    constructor({ skill, amount, position, frameCount }) {
+    constructor({ skill, amount, position }) {
         this.skill = skill;
         this.amount = amount;
         this.position = {
@@ -99,14 +137,24 @@ class experienceDrop {
             y: position.y
         },
         this.frameCount = 0;
+        this.duration = 180;
+        this.isDone = false;
     }
 
     draw() {
-        c.fillStyle = 'rgb(255, 255, 255)'
+        const progress = this.frameCount / this.duration;
+        c.fillStyle = `rgb(255, 255, 255, ${1 - progress})`
         c.fillText(this.skill + ": " +this.amount + " XP",
             this.position.x,
             this.position.y - this.frameCount * 0.1)
-        this.frameCount++;
+        if (this.frameCount < 400) {
+            this.frameCount++;
+        }
+        else {
+            xpDrops.shift();
+            this.isDone = true;
+            this.frameCount = 0;
+        }
     }
 }
 
@@ -323,8 +371,14 @@ class Player {
             this.isMining = false;
             this.setState("idle");
             console.log("You mined a tin!");
-            xpDrops.push(tinOreDrop);
-            localSave.inventory.push("tin ore");
+            xpDrops.push(tinOreDrop)
+            if (!localSave.full === true) {
+                localSave.inventory.push("tin ore");
+                console.log("Inventory not full, adding tin ore");
+            }
+            else {
+                console.log("Inventory full, dropping tin ore");
+            }
             this.inventory.push("tin ore");
             localSave.miningXP += 1;
         }
