@@ -1,22 +1,15 @@
 const canvas = document.querySelector("canvas");
-const c = canvas.getContext("2d");
+const ctx = canvas.getContext("2d");
 const customContextMenu = document.getElementById("customContextMenu");
+const inventoryContextMenu = document.getElementById("inventoryContextMenu");
 
-const TILE_SIZE = 16;
-const MAP_COLUMNS = 64;
-const MAP_ROWS = 36;
-const COLLISION_TILE_ID = 4516;
-const ZOOM = 2;
+
+// --- Game State ---
 
 let cameraX = 0;
 let cameraY = 0;
-
-const playerAnimations = {
-    idle: { src: "img/player-idle.png", frames: { max: 4 } },
-    walking: { src: "img/player-walk.png", frames: { max: 8 } },
-    mining: { src: "img/player-pickaxe.png", frames: { max: 6 } },
-}
-
+let xpDrops = [];
+let droppedItems = [];
 let localSave = {
     inventoryItems: [
         null, null, null, null, 
@@ -32,16 +25,21 @@ let localSave = {
         row: 6,
         column: 12
     }
-}
+};
+let contextTarget = {
+    row: 0,
+    column: 0
+};
+
+
+// --- Local Save Functions ---
 
 function saveLocalSave() {
     localStorage.setItem("localSave", JSON.stringify(localSave));
 }
-
 function loadLocalSave() {
     localSave = JSON.parse(localStorage.getItem("localSave"));
 }
-
 function clearLocalSave() {
     localStorage.removeItem("localSave");
 }
@@ -55,74 +53,20 @@ if (localStorage.getItem("localSave")) {
     console.log("Local save loaded");
 }
 
-console.log(localSave);
 
-const inventory = new InventoryUI({
-    inventoryItems: localSave.inventoryItems,
-    full: false
-})
+// --- Canvas Setup ---
 
-function checkInventoryFull() {
-    return !localSave.inventoryItems.includes(null);
-}
-
-function getLevel(xp) {
-    if (xp < 5) {
-        return 1;
-    }
-    else if (xp >= 5 && xp < 10) {
-        return 2;
-    }
-    else if (xp >= 10 && xp < 15) {
-        return 3;
-    }
-    else if (xp >= 15 && xp < 20) {
-        return 4;
-    }
-    else if (xp >=20 && xp < 50) {
-        return 5;
-    }
-    else if (xp >= 50 && xp < 100) {
-        return 6;
-    }
-};
-
-console.log("Mining Level: " + getLevel(localSave.miningXP));
-
-
-function preloadImages(playerAnimations) {
-    const loaded = {};
-    for (const [key, config] of Object.entries(playerAnimations)) {
-        const img = new Image();
-        img.src = config.src;
-        loaded[key] = {
-            image: img,
-            frames: config.frames
-        };
-    }
-    return loaded;
-}
-
-const playerSprites = preloadImages(playerAnimations);
-
-canvas.width = MAP_COLUMNS * TILE_SIZE;
-canvas.height = MAP_ROWS * TILE_SIZE;
-
-function resizeCanvas() {
-    const scaleX = window.innerWidth / canvas.width;
-    const scaleY = window.innerHeight / canvas.height;
-    const scale = Math.min(scaleX, scaleY);
-
-    canvas.style.width = `${canvas.width * scale}px`;
-    canvas.style.height = `${canvas.height * scale}px`;
-}
+canvas.width = MAP_COLUMNS * MAP_TILE_SIZE;
+canvas.height = MAP_ROWS * MAP_TILE_SIZE;
 
 window.addEventListener('resize', resizeCanvas);
 resizeCanvas();
 
+
+// --- Game Objects ---
+
 const backgroundImage = new Image();
 backgroundImage.src = "img/grid-world.png";
-
 const backgroundSprite = new Sprite({
     image: backgroundImage,
     position: {
@@ -131,8 +75,9 @@ const backgroundSprite = new Sprite({
         width: canvas.width,
         height: canvas.height
     }
-})
+});
 
+const playerSprites = preloadImages(playerAnimations);
 const player = new Player({
     sprites: playerSprites,
     initialState: "idle",
@@ -151,7 +96,6 @@ const player = new Player({
 
 const bookImage = new Image();
 bookImage.src = "img/book.png";
-
 const bookItem = new Item({
     name: "Tome of the Unknown",
     description: "A book that contains the secrets of the unknown.",
@@ -164,19 +108,17 @@ const bookItem = new Item({
 
 const rockImage = new Image();
 rockImage.src = "img/rock.png"
-
 const rock = new InteractiveObject({
     image: rockImage,
     position: {
         column: 25,
         row: 5
     }
-})
+});
 
-
-let xpDrops = [];
-
-const tinOreDrop = new experienceDrop({
+const tinOreImage = new Image();
+tinOreImage.src = "img/tin-ore.png"
+const tinOreDrop = new ExperienceDrop({
     skill: "Mining",
     amount: ORES.tin.miningXP,
     position: {
@@ -185,27 +127,35 @@ const tinOreDrop = new experienceDrop({
     }
 });
 
-const tinOreImage = new Image();
-tinOreImage.src = "img/tin-ore.png"
-
-
 const forgeImage = new Image();
 forgeImage.src = "img/forge.png"
-
 const forge = new InteractiveObject({
     image: forgeImage,
     position: {
         column: 23,
         row: 5
     }
-})
-
-droppedItems = [];
+});
 
 
-function dropItem(image, position) {
+// --- Inventory Functions ---
+
+const inventory = new InventoryUI({
+    inventoryItems: localSave.inventoryItems,
+    full: false
+});
+
+function findEmptyInventorySlot() {
+    const emptySlot = localSave.inventoryItems.findIndex(item => item === null);
+    return emptySlot;
+}
+
+function dropItem(itemData, position) {
+    const image = new Image();
+    image.src = itemData.image
     const droppedItem = new DroppedItem({
         image: image,
+        data: itemData,
         position: {
             column: position.column,
             row: position.row
@@ -214,44 +164,44 @@ function dropItem(image, position) {
     droppedItems.push(droppedItem);
 }
 
+
+// --- Tick Functions ---
+
 function serverTick() {
     const event = new Event("tick");
     document.dispatchEvent(event);
 }
-
-function findEmptyInventorySlot() {
-    const emptySlot = localSave.inventoryItems.findIndex(item => item === null);
-    return emptySlot;
-};
+const tickRate = setInterval(serverTick, TICK_RATE);
 
 
+// --- Event Listeners ---
 
-// for (let i = 0; i < this.inventory.length; i++) {
-//     const column = i % this.slotColumns;
-//     const row = Math.floor(i / this.slotColumns);
+function getActionsForInventorySlot(slot) {
+    inventoryContextMenu.innerHTML = "";
+
+    const actions = [
+        {
+            label: "Drop",
+            handler: () => {
+                let item = localSave.inventoryItems[slot];
+                console.log("Item: ", item);
+                dropItem(item, player.position);
+                inventory.inventoryItems[slot] = null;
+                console.log("Dropping item: ", item.name);
+                inventoryContextMenu.style.display = 'none';
+            }
+        }
+
+    ]
     
-// }
+    for (const action of actions) {
+        const ul = document.createElement("ul");
+        ul.textContent = action.label;
+        ul.addEventListener("click", action.handler);
+        inventoryContextMenu.appendChild(ul);
+    }
 
-// function dropInventoryItem(inventoryItem) {
-//     const droppedInvItem = 
-// }
-
-
-const tickRate = setInterval(serverTick, 600);
-
-// function getActionsForInventory(inventoryItem) {
-//     customContextMenu.innerHTML = "";
-//     const actions = [
-//         {
-//             label: "Drop",
-//             handler: () => {
-//                 dropInventoryItem(inventoryItem);
-//             }
-
-//         }
-//     ]
-
-// }
+}
 
 function getActionsForTile(row, column) {
     customContextMenu.innerHTML = "";
@@ -325,15 +275,7 @@ function getActionsForTile(row, column) {
 }
 
 addEventListener('click', (e) => {
-    const rect = canvas.getBoundingClientRect();
-    const scaleX = canvas.width / rect.width;
-    const scaleY = canvas.height / rect.height;
-    const canvasX = (e.clientX - rect.left) * scaleX;
-    const canvasY = (e.clientY - rect.top) * scaleY;
-    const worldX = canvasX / ZOOM + cameraX;
-    const worldY = canvasY / ZOOM + cameraY;
-
-
+    let worldPosition = getWorldPosition(e);
     if (player.storedPath.length > 0) {
         let midPath = player.storedPath[0].split("x");
         let midPathRow = Number(midPath[0]);
@@ -341,8 +283,8 @@ addEventListener('click', (e) => {
         player.startRow = midPathRow;
         player.startColumn = midPathColumn;
     }
-    player.targetRow = Math.floor(worldY / TILE_SIZE);
-    player.targetColumn = Math.floor(worldX / TILE_SIZE);
+    player.targetRow = Math.floor(worldPosition.worldY / MAP_TILE_SIZE);
+    player.targetColumn = Math.floor(worldPosition.worldX / MAP_TILE_SIZE);
     player.generatePathway();
 });
 
@@ -350,35 +292,40 @@ customContextMenu.addEventListener('click', (e) => {
     e.stopPropagation();
 });
 
-let contextTarget = {
-    row: 0,
-    column: 0
-}
+inventoryContextMenu.addEventListener('click', (e) => {
+    e.stopPropagation();
+});
+
 
 addEventListener('contextmenu', (e) => {
     e.preventDefault();
-    const rect = canvas.getBoundingClientRect();
-    const scaleX = canvas.width / rect.width;
-    const scaleY = canvas.height / rect.height;
-    const canvasX = (e.clientX - rect.left) * scaleX;
-    const canvasY = (e.clientY - rect.top) * scaleY;
-    const worldX = canvasX / ZOOM + cameraX;
-    const worldY = canvasY / ZOOM + cameraY;
 
-    contextTarget.row = Math.floor(worldY / TILE_SIZE);
-    contextTarget.column = Math.floor(worldX / TILE_SIZE);
-    getActionsForTile(contextTarget.row, contextTarget.column);
-    // getActionsForInventory();
-    customContextMenu.style.top = `${e.pageY}px`;
-    customContextMenu.style.left = `${e.pageX}px`;
-    customContextMenu.style.display = 'block';
+    customContextMenu.style.display = 'none';
+    inventoryContextMenu.style.display = 'none';
+
+    let clickedSlot = getInventorySlotPosition(e);
+
+    if (clickedSlot >= 0) {
+        getActionsForInventorySlot(clickedSlot);
+        inventoryContextMenu.style.top = `${e.pageY}px`;
+        inventoryContextMenu.style.left = `${e.pageX}px`;
+        inventoryContextMenu.style.display = 'block';
+    }
+    else {
+        let worldPosition = getWorldPosition(e);
+        contextTarget.row = Math.floor(worldPosition.worldY / MAP_TILE_SIZE);
+        contextTarget.column = Math.floor(worldPosition.worldX / MAP_TILE_SIZE);
+        getActionsForTile(contextTarget.row, contextTarget.column);
+        customContextMenu.style.top = `${e.pageY}px`;
+        customContextMenu.style.left = `${e.pageX}px`;
+        customContextMenu.style.display = 'block';
+    }
 });
 
 addEventListener('click', (e) => {
     customContextMenu.style.display = 'none';
+    inventoryContextMenu.style.display = 'none';
 });
-
-let tickCount = 0;
 
 document.addEventListener("tick", (e) => {
     player.movePlayer();
@@ -388,12 +335,15 @@ document.addEventListener("tick", (e) => {
     saveLocalSave();
 });
 
+
+// --- Game Loop ---
+
 function animate() {
     window.requestAnimationFrame(animate);
-    c.clearRect(0, 0, canvas.width, canvas.height);
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-    cameraX = player.position.column * TILE_SIZE - canvas.width / ZOOM / 2;
-    cameraY = player.position.row * TILE_SIZE - canvas.height / ZOOM / 2;
+    cameraX = player.position.column * MAP_TILE_SIZE - canvas.width / ZOOM / 2;
+    cameraY = player.position.row * MAP_TILE_SIZE - canvas.height / ZOOM / 2;
 
     xpDrops.forEach(xpDrop => {
         xpDrop.position.x = cameraX + 430;
@@ -403,10 +353,10 @@ function animate() {
     inventory.position.x = cameraX + 440;
     inventory.position.y = cameraY + 170;
 
-    c.save();
-    c.scale(ZOOM, ZOOM);
-    c.imageSmoothingEnabled = false;
-    c.translate(-cameraX, -cameraY);
+    ctx.save();
+    ctx.scale(ZOOM, ZOOM);
+    ctx.imageSmoothingEnabled = false;
+    ctx.translate(-cameraX, -cameraY);
 
     backgroundSprite.draw();
     bookItem.draw();
@@ -424,7 +374,7 @@ function animate() {
     //     boundary.draw()
     // });
 
-    c.restore();
+    ctx.restore();
 
 
 }

@@ -12,7 +12,7 @@ class Sprite {
     }
 
     draw() {
-        c.drawImage(
+        ctx.drawImage(
             this.image,
             this.frames.val * this.width,
             0,
@@ -48,14 +48,14 @@ class Item {
     }
 
     draw() {
-        c.drawImage(
+        ctx.drawImage(
             this.image, 
             0,
             0,
             this.image.width,
             this.image.height,
-            this.position.column * TILE_SIZE,
-            this.position.row * TILE_SIZE,
+            this.position.column * MAP_TILE_SIZE,
+            this.position.row * MAP_TILE_SIZE,
             this.width,
             this.height
         )
@@ -77,16 +77,39 @@ class InventoryUI {
         };
         this.image = new Image();
         this.image.src = `img/book.png`;
+        this.inventoryItemImages = this.loadInventoryItemImages();
+
+
     }
 
+    loadInventoryItemImages() {
+        const inventoryItemImages = {};
+        for (const item of this.inventoryItems) {
+            if (item === null) continue;
+            const image = new Image();
+            image.src = item.image;
+            inventoryItemImages[item.name] = image;
+        }
+        return inventoryItemImages;
+    }
+
+
     draw() {
-        c.fillStyle = "rgba(0, 0, 0, 0.5)";
-        c.fillRect(this.position.x, this.position.y, this.width, this.height)
-        for (let i = 0; i < this.inventoryItems.length; i++) {
+        ctx.fillStyle = "rgba(0, 0, 0, 0.5)";
+        ctx.fillRect(this.position.x, this.position.y, this.width, this.height)
+        let i = -1;
+        for (let item of this.inventoryItems) {
+            i ++;
+            if (item === null) continue;
             const column = i % this.slotColumns;
-            const row = Math.floor(i / this.slotColumns);
-            c.drawImage(
-                this.image,
+            const row = Math.floor( i / this.slotColumns);
+            if (!this.inventoryItemImages[item.name]) {
+                const image = new Image();
+                image.src = item.image;
+                this.inventoryItemImages[item.name] = image;
+            }
+            ctx.drawImage(
+                this.inventoryItemImages[item.name],
                 0,
                 0,
                 this.slotSize,
@@ -112,14 +135,14 @@ class InteractiveObject {
     }
     
     draw() {
-        c.drawImage(
+        ctx.drawImage(
             this.image,
             0,
             0,
             this.image.width,
             this.image.height,
-            this.position.column * TILE_SIZE,
-            this.position.row * TILE_SIZE,
+            this.position.column * MAP_TILE_SIZE,
+            this.position.row * MAP_TILE_SIZE,
             this.image.width,
             this.image.height
         )
@@ -128,7 +151,7 @@ class InteractiveObject {
 
 }
 
-class experienceDrop {
+class ExperienceDrop {
     constructor({ skill, amount, position }) {
         this.skill = skill;
         this.amount = amount;
@@ -143,8 +166,8 @@ class experienceDrop {
 
     draw() {
         const progress = this.frameCount / this.duration;
-        c.fillStyle = `rgb(255, 255, 255, ${1 - progress})`
-        c.fillText(this.skill + ": " +this.amount + " XP",
+        ctx.fillStyle = `rgb(255, 255, 255, ${1 - progress})`
+        ctx.fillText(this.skill + ": " +this.amount + " XP",
             this.position.x,
             this.position.y - this.frameCount * 0.1)
         if (this.frameCount < 400) {
@@ -157,7 +180,6 @@ class experienceDrop {
         }
     }
 }
-
 
 class Player {
     constructor({ sprites, initialState, position, offset }) {
@@ -200,8 +222,8 @@ class Player {
                     this.boundaries.push(
                         new Boundary({
                             position: {
-                                x: j * TILE_SIZE,
-                                y: i * TILE_SIZE
+                                x: j * MAP_TILE_SIZE,
+                                y: i * MAP_TILE_SIZE
                             }
                         })
                     )
@@ -377,12 +399,12 @@ class Player {
             console.log("You mined a tin!");
             xpDrops.push(tinOreDrop)
             const emptySlot = findEmptyInventorySlot();
-            if (checkInventoryFull() === false) {
-                localSave.inventoryItems[emptySlot] = ("tin ore");
+            if (!checkInventoryFull()) {
+                localSave.inventoryItems[emptySlot] = ORES.tin;
                 console.log("Inventory not full, adding tin ore");
             }
             else {
-                dropItem(tinOreImage, this.position);
+                dropItem(ORES.tin, this.position);
                 console.log("Inventory full, dropping tin ore");
             }
             localSave.miningXP += 1;
@@ -405,7 +427,7 @@ class Player {
 
     pickUpItem() {
         if (!this.isPickingUp) return;
-        else if (checkInventoryFull() === true) {
+        else if (checkInventoryFull()) {
             console.log("Inventory full, cannot pick up item");
             this.isPickingUp = false;
             return;
@@ -417,7 +439,7 @@ class Player {
             droppedItems.splice(itemIndex, 1);
             console.log("Picking up item: " + item);
             const emptySlot = findEmptyInventorySlot();
-            localSave.inventoryItems[emptySlot] = item;
+            localSave.inventoryItems[emptySlot] = item.data;
             this.isPickingUp = false;
         }
     }
@@ -428,21 +450,21 @@ class Player {
             let path = storedTile.split("x");
             let pathRow = Number(path[0]);
             let pathColumn = Number(path[1]);
-            c.fillStyle = 'rgba(71, 82, 180, 0.3)'
-            c.fillRect(pathColumn * TILE_SIZE, pathRow * TILE_SIZE, TILE_SIZE, TILE_SIZE);
+            ctx.fillStyle = 'rgba(71, 82, 180, 0.3)'
+            ctx.fillRect(pathColumn * MAP_TILE_SIZE, pathRow * MAP_TILE_SIZE, MAP_TILE_SIZE, MAP_TILE_SIZE);
         }
     }
 
     // Draw the player
     draw() {
-        c.drawImage(
+        ctx.drawImage(
             this.image,
             this.frames.val * (this.image.width / this.frames.max),
             0,
             this.image.width / this.frames.max,
             this.image.height,
-            this.position.column * TILE_SIZE - this.offset.x,
-            this.position.row * TILE_SIZE - this.offset.y,
+            this.position.column * MAP_TILE_SIZE - this.offset.x,
+            this.position.row * MAP_TILE_SIZE - this.offset.y,
             this.image.width / this.frames.max,
             this.image.height
         )
@@ -462,14 +484,15 @@ class Boundary {
     }
 
     draw() {
-        c.fillStyle = 'rgba(255, 0, 0, 0.5)'
-        c.fillRect(this.position.x, this.position.y, TILE_SIZE, TILE_SIZE)
+        ctx.fillStyle = 'rgba(255, 0, 0, 0.5)'
+        ctx.fillRect(this.position.x, this.position.y, MAP_TILE_SIZE, MAP_TILE_SIZE)
     }
 }
 
 class DroppedItem {
-    constructor({ image, position }) {
+    constructor({ image, position, data }) {
         this.image = image;
+        this.data = data;
         this.position = {
             column: position.column,
             row: position.row
@@ -478,14 +501,14 @@ class DroppedItem {
         this.height = this.image.height;
     }
     draw() {
-        c.drawImage(
+        ctx.drawImage(
             this.image,
             0,
             0,
             this.image.width,
             this.image.height,
-            this.position.column * TILE_SIZE,
-            this.position.row * TILE_SIZE,
+            this.position.column * MAP_TILE_SIZE,
+            this.position.row * MAP_TILE_SIZE,
             this.width,
             this.height
         )

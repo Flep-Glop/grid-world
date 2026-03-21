@@ -24,7 +24,8 @@ canvas {
     aspect-ratio: 16 / 9;
 }
 
-#customContextMenu {
+#customContextMenu,
+#inventoryContextMenu {
     position: absolute;
     border: 1px solid #ccc;
     text-align: left;
@@ -33,6 +34,8 @@ canvas {
     display: none;
 }
 
-#customContextMenu ul:hover {
+#customContextMenu,
+#inventoryContextMenu ul:hover {
     background-color: #4a4a4a;
 }
+
