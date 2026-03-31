@@ -7,6 +7,9 @@
     "expandedProjectPaths": [
     ],
     "fileStates": {
+        "": {
+            "scaleInDock": 4.0144
+        },
         "/Users/lukelussier/Documents/GitHub/the-observatory-local/public/images/observatory.tmx": {
             "scale": 1.1741,
             "selectedLayer": 6,
@@ -49,11 +52,11 @@
             "scaleInDock": 1
         },
         "grid-world.tmx": {
-            "scale": 2.0965,
+            "scale": 0.7351,
             "selectedLayer": 6,
             "viewCenter": {
-                "x": 132.12497018840926,
-                "y": 56.76126878130218
+                "x": 504.0130594476941,
+                "y": 330.56726975921646
             }
         },
         "grid-world.tmx#dungeon-props": {

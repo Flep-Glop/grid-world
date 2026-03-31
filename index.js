@@ -10,6 +10,9 @@ let cameraX = 0;
 let cameraY = 0;
 let xpDrops = [];
 let droppedItems = [];
+let shownAction = null;
+let hoverRow = 0;
+let hoverColumn = 0;
 let localSave = {
     inventoryItems: [
         null, null, null, null, 
@@ -46,6 +49,7 @@ function clearLocalSave() {
 
 if (localStorage.getItem("localSave")) {
 // nuke option if save is bugged
+// that is really funny lol - getting assets together and all that jazz
     // clearLocalSave();
     // saveLocalSave();
     // console.log("Local save cleared");
@@ -64,6 +68,12 @@ resizeCanvas();
 
 
 // --- Game Objects ---
+
+const mainSpriteSheet = new Image();
+mainSpriteSheet.src = "img/main-spritesheet.png";
+
+const actionSpriteSheet = new Image();
+actionSpriteSheet.src = "img/action-spritesheet.png";
 
 const backgroundImage = new Image();
 backgroundImage.src = "img/grid-world.png";
@@ -91,20 +101,24 @@ const player = new Player({
     offset: {
         x: 11,
         y: 11
-    }
+    },
+    totalHealth: 1000,
+    attackDamage: 10
 });
 
-const bookImage = new Image();
-bookImage.src = "img/book.png";
-const bookItem = new Item({
-    name: "Tome of the Unknown",
-    description: "A book that contains the secrets of the unknown.",
-    image: bookImage,
+const goblinImage = new Image();
+goblinImage.src = "img/goblin.png";
+const goblin = new Enemy({
+    image: goblinImage,
     position: {
-        column: 14,
-        row: 5
-    }
-});
+        column: 35,
+        row: 8
+    },
+    totalHealth: 10,
+    attackDamage: 10,
+    dropTable: [],
+    respawnTimer: 0
+})
 
 const rockImage = new Image();
 rockImage.src = "img/rock.png"
@@ -116,26 +130,43 @@ const rock = new InteractiveObject({
     }
 });
 
-const tinOreImage = new Image();
-tinOreImage.src = "img/tin-ore.png"
 const tinOreDrop = new ExperienceDrop({
     skill: "Mining",
-    amount: ORES.tin.miningXP,
+    amount: ITEMS.tinOre.mining.xp,
     position: {
         x: cameraX + 100,
         y: cameraY + 100
     }
 });
 
-const forgeImage = new Image();
-forgeImage.src = "img/forge.png"
-const forge = new InteractiveObject({
-    image: forgeImage,
-    position: {
-        column: 23,
-        row: 5
+
+function getActionDisplayForTile(hoverRow, hoverColumn) {
+    if (hoverColumn === 25 && hoverRow === 5) {
+        return ACTIONS.mine.id;
     }
-});
+    if (hoverColumn === 35 && hoverRow === 8) {
+        return ACTIONS.fight.id;
+    }
+    if (hoverColumn === 5 && hoverRow === 10) {
+        return ACTIONS.enter.id;
+    }
+    return null;
+}
+
+function showActionForTile(hoverRow, hoverColumn) {
+    let actionId = getActionDisplayForTile(hoverRow, hoverColumn);
+    if (actionId !== null) {
+        shownAction = new ActionDisplay({
+            actionId: actionId,
+            hoverPosition: {
+                column: hoverColumn,
+                row: hoverRow
+            }
+        });
+    } else {
+        shownAction = null;
+    }
+};
 
 
 // --- Inventory Functions ---
@@ -151,15 +182,12 @@ function findEmptyInventorySlot() {
 }
 
 function dropItem(itemData, position) {
-    const image = new Image();
-    image.src = itemData.image
     const droppedItem = new DroppedItem({
-        image: image,
-        data: itemData,
+        itemId: itemData.id,
         position: {
-            column: position.column,
+            column: position.column + 1,
             row: position.row
-        }
+        },
     })
     droppedItems.push(droppedItem);
 }
@@ -183,11 +211,11 @@ function getActionsForInventorySlot(slot) {
         {
             label: "Drop",
             handler: () => {
-                let item = localSave.inventoryItems[slot];
-                console.log("Item: ", item);
-                dropItem(item, player.position);
+                let itemId = localSave.inventoryItems[slot];
+                console.log("Item: ", ITEMS[itemId].id);
+                dropItem(ITEMS[itemId], player.position);
                 inventory.inventoryItems[slot] = null;
-                console.log("Dropping item: ", item.name);
+                console.log("Dropping item: ", ITEMS[itemId].name);
                 inventoryContextMenu.style.display = 'none';
             }
         }
@@ -202,6 +230,7 @@ function getActionsForInventorySlot(slot) {
     }
 
 }
+
 
 function getActionsForTile(row, column) {
     customContextMenu.innerHTML = "";
@@ -237,6 +266,7 @@ function getActionsForTile(row, column) {
         actions.push({
             label: "Mine Tin Rock",
             handler: () => {
+                shownAction = showAction(ACTIONS.mine, { column: column, row: row });
                 player.targetRow = row;
                 player.targetColumn = column;
                 player.generatePathway();
@@ -253,14 +283,14 @@ function getActionsForTile(row, column) {
         });
     }
 
-    if (row === forge.position.row && column === forge.position.column) {
+    if (row === goblin.position.row && column === goblin.position.column && !goblin.isDead) {
         actions.push({
-            label: "Smelt Tin Ore",
+            label: "Attack Goblin",
             handler: () => {
                 player.targetRow = row;
-                player.targetColumn = column;
+                player.targetColumn = column - 1;
                 player.generatePathway();
-                player.isSmelting = true;
+                player.isAttacking = true;
                 customContextMenu.style.display = 'none';
             }
         });
@@ -273,6 +303,14 @@ function getActionsForTile(row, column) {
         customContextMenu.appendChild(ul);
     }
 }
+
+addEventListener('mousemove', (e) => {
+    let worldPosition = getWorldPosition(e);
+    hoverRow = Math.floor(worldPosition.worldY / MAP_TILE_SIZE);
+    hoverColumn = Math.floor(worldPosition.worldX / MAP_TILE_SIZE);
+    showActionForTile(hoverRow, hoverColumn);
+
+});
 
 addEventListener('click', (e) => {
     let worldPosition = getWorldPosition(e);
@@ -331,7 +369,9 @@ document.addEventListener("tick", (e) => {
     player.movePlayer();
     player.mineRock();
     player.smeltOre();
+    player.attackEnemy();
     player.pickUpItem();
+    respawnTimer();
     saveLocalSave();
 });
 
@@ -345,10 +385,7 @@ function animate() {
     cameraX = player.position.column * MAP_TILE_SIZE - canvas.width / ZOOM / 2;
     cameraY = player.position.row * MAP_TILE_SIZE - canvas.height / ZOOM / 2;
 
-    xpDrops.forEach(xpDrop => {
-        xpDrop.position.x = cameraX + 430;
-        xpDrop.position.y = cameraY + 80;
-    });
+    xpDrops = xpDrops.filter(xpDrop => !xpDrop.isDone);
 
     inventory.position.x = cameraX + 440;
     inventory.position.y = cameraY + 170;
@@ -359,9 +396,11 @@ function animate() {
     ctx.translate(-cameraX, -cameraY);
 
     backgroundSprite.draw();
-    bookItem.draw();
-    player.drawStoredPath();
+    // player.drawStoredPath();
     rock.draw();
+    if (!goblin.isDead) {
+        goblin.draw();
+    }
     inventory.draw();
     droppedItems.forEach(droppedItem => {
         droppedItem.draw();
@@ -369,6 +408,10 @@ function animate() {
     xpDrops.forEach(xpDrop => {
         xpDrop.draw();
     });
+    drawCoordinates(hoverRow, hoverColumn);
+    if (shownAction !== null) {
+        shownAction.draw();
+    }
     player.draw();
     // player.boundaries.forEach(boundary => {
     //     boundary.draw()

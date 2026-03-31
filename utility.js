@@ -90,3 +90,98 @@ function getInventorySlotPosition(e) {
     console.log("Inventory clicked on slot: ", clickedSlot);
     return clickedSlot;
 }
+
+function chooseCombatMove() {
+    const possibleMoves = ["slash"]
+    combatMove = possibleMoves[0]
+    return combatMove;
+}
+
+function executeCombatMove(combatMove) {
+    switch (combatMove) {
+        case "slash":
+            player.slashAccuracy = 0.75
+            if (Math.random() < player.slashAccuracy) {
+                goblin.currentHealth -= player.attackDamage;
+                console.log("Goblin health: ", goblin.currentHealth);
+                return goblin.currentHealth;
+            }
+            else {
+                console.log("Player attack missed");
+                return
+            }
+    }
+}
+
+function enemyCombatMove() {
+    enemySlashDamage = 10
+    enemyAttackAccuracy = 0.75
+    if (Math.random() < enemyAttackAccuracy) {
+        player.currentHealth -= enemySlashDamage;
+        console.log("Player health: ", player.currentHealth);
+    }
+    else {
+        console.log("Enemy attack missed");
+    }
+    return
+}
+
+function getRandomInt(max) {
+    return Math.floor(Math.random() * max);
+}
+
+function rollDrop(dropTable) {
+    let maxroll = 0;
+    for (let itemDropRate of dropTable) {
+        maxroll += itemDropRate.chance;
+    }
+
+    let roll = getRandomInt(maxroll);
+    
+    let cumulative = 0;
+    for (let itemDropRate of dropTable) {
+        cumulative += itemDropRate.chance;
+        if (roll < cumulative) {
+            return itemDropRate.item;
+        }
+    }
+}
+
+function checkForEnemyDeath() {
+    if (goblin.currentHealth <= 0) {
+        goblin.isDead = true;
+        console.log("Goblin is dead");
+        let alwaysDrop = DROP_TABLE.goblin.alwaysDrop;
+        let rolledItem = rollDrop(DROP_TABLE.goblin.items);
+        dropItem(ITEMS[alwaysDrop], goblin.position);
+        dropItem(ITEMS[rolledItem], goblin.position);
+    }
+    return
+}
+
+function checkForPlayerDeath() {
+    if (player.currentHealth <= 0) {
+        player.isDead = true;
+        console.log("Player is dead");
+    }
+    return
+}
+
+function drawCoordinates(row, column) {
+    ctx.fillStyle = 'white';
+    ctx.font = '8px Arial';
+    ctx.fillText(row + ", " + column, column * MAP_TILE_SIZE, row * MAP_TILE_SIZE);
+    ctx.fillStyle = 'rgba(0, 0, 0, 0.2)';
+    ctx.fillRect(column * MAP_TILE_SIZE, row * MAP_TILE_SIZE, MAP_TILE_SIZE, MAP_TILE_SIZE);
+}
+
+function respawnTimer() {
+    if (goblin.isDead) {
+        goblin.respawnTimer++;
+        if (goblin.respawnTimer >= 10) {
+            goblin.isDead = false;
+            goblin.currentHealth = goblin.totalHealth;
+            goblin.respawnTimer = 0;
+        }
+    }
+}

@@ -77,48 +77,29 @@ class InventoryUI {
         };
         this.image = new Image();
         this.image.src = `img/book.png`;
-        this.inventoryItemImages = this.loadInventoryItemImages();
-
-
     }
-
-    loadInventoryItemImages() {
-        const inventoryItemImages = {};
-        for (const item of this.inventoryItems) {
-            if (item === null) continue;
-            const image = new Image();
-            image.src = item.image;
-            inventoryItemImages[item.name] = image;
-        }
-        return inventoryItemImages;
-    }
-
 
     draw() {
         ctx.fillStyle = "rgba(0, 0, 0, 0.5)";
         ctx.fillRect(this.position.x, this.position.y, this.width, this.height)
-        let i = -1;
-        for (let item of this.inventoryItems) {
-            i ++;
-            if (item === null) continue;
+        for (let i = 0; i < this.inventoryItems.length; i++) {
+            const itemId = this.inventoryItems[i];
+            if (itemId === null) continue;
+
+            const render = ITEMS[itemId].render;
             const column = i % this.slotColumns;
-            const row = Math.floor( i / this.slotColumns);
-            if (!this.inventoryItemImages[item.name]) {
-                const image = new Image();
-                image.src = item.image;
-                this.inventoryItemImages[item.name] = image;
-            }
+            const row = Math.floor(i / this.slotColumns);
+            const drawX = this.position.x + column * this.slotSize;
+            const drawY = this.position.y + row * this.slotSize;
+
             ctx.drawImage(
-                this.inventoryItemImages[item.name],
-                0,
-                0,
+                mainSpriteSheet,
+                render.column * this.slotSize,
+                render.row * this.slotSize,
                 this.slotSize,
                 this.slotSize,
-                this.position.x + column * this.slotSize,
-                this.position.y + row * this.slotSize,
-                this.slotSize,
-                this.slotSize
-            )
+                drawX, drawY, this.slotSize, this.slotSize
+            );
         }
     }
 }
@@ -158,7 +139,7 @@ class ExperienceDrop {
         this.position = {
             x: position.x,
             y: position.y
-        },
+        };
         this.frameCount = 0;
         this.duration = 180;
         this.isDone = false;
@@ -181,8 +162,36 @@ class ExperienceDrop {
     }
 }
 
+class Enemy {
+    constructor({ image, position, totalHealth, attackDamage, dropTable, respawnTimer }) {
+        this.image = image;
+        this.position = position;
+        this.totalHealth = totalHealth;
+        this.currentHealth = totalHealth;
+        this.attackDamage = attackDamage;
+        this.slashAccuracy = 0.75;
+        this.dropTable = dropTable;
+        this.isDead = false;
+        this.respawnTimer = respawnTimer;
+    }
+
+        draw() {
+            ctx.drawImage(
+                this.image,
+                0,
+                0,
+                this.image.width,
+                this.image.height,
+                this.position.column * MAP_TILE_SIZE,
+                this.position.row * MAP_TILE_SIZE,
+                this.image.width,
+                this.image.height
+            )
+        }
+}
+
 class Player {
-    constructor({ sprites, initialState, position, offset }) {
+    constructor({ sprites, initialState, position, offset, totalHealth, attackDamage }) {
         this.sprites = sprites;
         const initial = this.sprites[initialState];
         this.image = initial.image;
@@ -196,6 +205,9 @@ class Player {
         this.targetRow = 0;
         this.targetColumn = 0;
         this.offset = offset;
+        this.totalHealth = totalHealth;
+        this.currentHealth = totalHealth;
+        this.attackDamage = attackDamage;
         this.image.onload = () => {
             this.width = this.image.width / this.frames.max;
             this.height = this.image.height;
@@ -204,6 +216,7 @@ class Player {
         this.isMining = false;
         this.isSmelting = false;
         this.isPickingUp = false;
+        this.isAttacking = false;
         this.smeltingProgress = 0;
         this.queueSet = [];
         this.closedSet = [];
@@ -400,11 +413,11 @@ class Player {
             xpDrops.push(tinOreDrop)
             const emptySlot = findEmptyInventorySlot();
             if (!checkInventoryFull()) {
-                localSave.inventoryItems[emptySlot] = ORES.tin;
+                localSave.inventoryItems[emptySlot] = ITEMS.tinOre.id;
                 console.log("Inventory not full, adding tin ore");
             }
             else {
-                dropItem(ORES.tin, this.position);
+                dropItem(ITEMS.tinOre, this.position);
                 console.log("Inventory full, dropping tin ore");
             }
             localSave.miningXP += 1;
@@ -425,23 +438,44 @@ class Player {
         // }
     }
 
+    attackEnemy() {
+        if (!this.isAttacking) return;
+        this.setState("attacking");
+        combatMove = chooseCombatMove();
+        executeCombatMove(combatMove);
+        checkForEnemyDeath();
+        if (goblin.isDead) {
+            this.setState("idle");
+            this.isAttacking = false;
+            return;
+        }
+        enemyCombatMove();
+        checkForPlayerDeath();
+        if (goblin.isDead) {
+            this.setState("idle");
+            this.isAttacking = false;
+            return;
+        }
+    }
+
     pickUpItem() {
         if (!this.isPickingUp) return;
-        else if (checkInventoryFull()) {
-            console.log("Inventory full, cannot pick up item");
+        if (checkInventoryFull()) {
             this.isPickingUp = false;
             return;
         }
-        else {
-            const containsItem = (item) => item.position.row === this.targetRow && item.position.column === this.targetColumn;
-            const item = droppedItems.find(containsItem);
-            const itemIndex = droppedItems.indexOf(item);
-            droppedItems.splice(itemIndex, 1);
-            console.log("Picking up item: " + item);
-            const emptySlot = findEmptyInventorySlot();
-            localSave.inventoryItems[emptySlot] = item.data;
+        const itemFound = droppedItems.find( item => 
+            item.position.row === this.targetRow &&
+            item.position.column === this.targetColumn
+        )
+        if (!itemFound) {
             this.isPickingUp = false;
+            return;
         }
+        droppedItems.splice(droppedItems.indexOf(itemFound), 1);
+        const emptySlot = findEmptyInventorySlot();
+        localSave.inventoryItems[emptySlot] = itemFound.itemId;
+        this.isPickingUp = false;
     }
 
     // Draw the storedPath
@@ -490,27 +524,51 @@ class Boundary {
 }
 
 class DroppedItem {
-    constructor({ image, position, data }) {
-        this.image = image;
-        this.data = data;
+    constructor({ itemId, position }) {
+        this.itemId = itemId;
         this.position = {
             column: position.column,
             row: position.row
         };
-        this.width = this.image.width;
-        this.height = this.image.height;
     }
+
     draw() {
+        const render = ITEMS[this.itemId].render;
         ctx.drawImage(
-            this.image,
-            0,
-            0,
-            this.image.width,
-            this.image.height,
+            mainSpriteSheet,
+            render.column * MAP_TILE_SIZE,
+            render.row * MAP_TILE_SIZE,
+            MAP_TILE_SIZE,
+            MAP_TILE_SIZE,
             this.position.column * MAP_TILE_SIZE,
             this.position.row * MAP_TILE_SIZE,
-            this.width,
-            this.height
+            MAP_TILE_SIZE,
+            MAP_TILE_SIZE
+        )
+    }
+}
+
+class ActionDisplay {
+    constructor({ actionId, hoverPosition }) {
+        this.actionId = actionId;
+        this.position = {
+            column: hoverPosition.column,
+            row: hoverPosition.row
+        };
+    }
+
+    draw() {
+        const render = ACTIONS[this.actionId].render;
+        ctx.drawImage(
+            actionSpriteSheet,
+            render.column * ACTION_TILE_SIZE,
+            render.row * ACTION_TILE_SIZE,
+            ACTION_TILE_SIZE,
+            ACTION_TILE_SIZE,
+            this.position.column * MAP_TILE_SIZE - (ACTION_TILE_SIZE - MAP_TILE_SIZE) / 2,
+            this.position.row * MAP_TILE_SIZE - (ACTION_TILE_SIZE - MAP_TILE_SIZE) / 2,
+            ACTION_TILE_SIZE,
+            ACTION_TILE_SIZE
         )
     }
 }

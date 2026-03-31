@@ -4,6 +4,8 @@ const MAP_ROWS = 36;
 const MAP_WIDTH = 1024;
 const MAP_HEIGHT = 576;
 
+const ACTION_TILE_SIZE = 20;
+
 const COLLISION_TILE_ID = 4516;
 
 const ZOOM = 2;
@@ -24,4 +26,24 @@ const playerAnimations = {
     idle: { src: "img/player-idle.png", frames: { max: 4 } },
     walking: { src: "img/player-walk.png", frames: { max: 8 } },
     mining: { src: "img/player-pickaxe.png", frames: { max: 6 } },
+    attacking: { src: "img/player-sword.png", frames: { max: 6 } }
 };
+
+const DROP_TABLE = {
+    goblin: {
+        alwaysDrop: "bones",
+        items: [
+            { item: "tinOre", chance: 10 },
+            { item: "leather", chance: 10 },
+            { item: "goblinTooth", chance: 10 },
+            { item: "tinSword", chance: 10 },
+            { item: "coins", chance: 10 },
+            { item: "ironIngot", chance: 5 },
+            { item: "bronzeHelmet", chance: 5 },
+            { item: "steelGloves", chance: 3 },
+            { item: "bronzeRing", chance: 2 },
+            { item: "woodShield", chance: 2 },
+            { item: "sapphire", chance: 1 }
+        ]
+    }
+}
