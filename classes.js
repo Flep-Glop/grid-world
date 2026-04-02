@@ -1,5 +1,5 @@
 class Sprite {
-    constructor({ image, position, frames = { max: 1 }, sprites = [] }) {
+    constructor({ image, position, frames = { max: 1 } }) {
         this.position = position;
         this.image = image;
         this.frames = {...frames, val: 0, elapsed: 0 };
@@ -8,7 +8,6 @@ class Sprite {
             this.width = this.image.width / this.frames.max;
             this.height = this.image.height;
         };
-        this.sprites = sprites;
     }
 
     draw() {
@@ -24,7 +23,6 @@ class Sprite {
             this.image.height
         )
 
-        if (!this.moving) return
         if (this.frames.max > 1) {
             this.frames.elapsed++
         }
@@ -35,35 +33,8 @@ class Sprite {
     }
 }
 
-class Item {
-    constructor({ name, description, image, position }) {
-        this.name = name;
-        this.description = description;
-        this.image = image;
-        this.position = position;
-        this.image.onload = () => {
-            this.width = this.image.width
-            this.height = this.image.height
-        };
-    }
-
-    draw() {
-        ctx.drawImage(
-            this.image, 
-            0,
-            0,
-            this.image.width,
-            this.image.height,
-            this.position.column * MAP_TILE_SIZE,
-            this.position.row * MAP_TILE_SIZE,
-            this.width,
-            this.height
-        )
-    }
-}
-
 class InventoryUI {
-    constructor({ inventoryItems, full}) {
+    constructor({ inventoryItems }) {
         this.inventoryItems = inventoryItems;
         this.slotSize = 16;
         this.slotRows = 7;
@@ -75,8 +46,6 @@ class InventoryUI {
             x: 570,
             y: 120
         };
-        this.image = new Image();
-        this.image.src = `img/book.png`;
     }
 
     draw() {
@@ -105,10 +74,10 @@ class InventoryUI {
 }
 
 class InteractiveObject {
-    constructor({ image, position }) {
+    constructor({ image, position, action }) {
         this.image = image;
         this.position = position;
-
+        this.action = action;
         this.image.onload = () => {
             this.width = this.image.width;
             this.height = this.image.height;
@@ -133,61 +102,134 @@ class InteractiveObject {
 }
 
 class ExperienceDrop {
-    constructor({ skill, amount, position }) {
+    constructor({ skill, amount, yOffset }) {
         this.skill = skill;
         this.amount = amount;
-        this.position = {
-            x: position.x,
-            y: position.y
-        };
+        this.yOffset = yOffset || 0;
         this.frameCount = 0;
         this.duration = 180;
         this.isDone = false;
     }
 
     draw() {
+        ctx.font = "6px Arial";
         const progress = this.frameCount / this.duration;
-        ctx.fillStyle = `rgb(255, 255, 255, ${1 - progress})`
-        ctx.fillText(this.skill + ": " +this.amount + " XP",
-            this.position.x,
-            this.position.y - this.frameCount * 0.1)
-        if (this.frameCount < 400) {
+        ctx.fillStyle = `rgb(255, 255, 255, ${1 - progress * 2})`;
+        ctx.fillText(
+            this.skill + ": " + this.amount + " XP",
+            cameraX + 400,
+            cameraY + 60 + this.yOffset - this.frameCount * 0.4
+        );
+        if (this.frameCount < this.duration) {
             this.frameCount++;
-        }
-        else {
-            xpDrops.shift();
+        } else {
             this.isDone = true;
-            this.frameCount = 0;
         }
     }
 }
 
-class Enemy {
-    constructor({ image, position, totalHealth, attackDamage, dropTable, respawnTimer }) {
-        this.image = image;
-        this.position = position;
+class Enemy extends InteractiveObject {
+    constructor({ image, position, totalHealth, attackDamage, dropTable, respawnTimer, action }) {
+        super({ image, position, action });
         this.totalHealth = totalHealth;
         this.currentHealth = totalHealth;
         this.attackDamage = attackDamage;
         this.slashAccuracy = 0.75;
         this.dropTable = dropTable;
         this.isDead = false;
-        this.respawnTimer = respawnTimer;
+        this.respawnTimer = respawnTimer || 0;
+    }
+}
+
+class Pathfinder {
+    constructor(blockedTiles) {
+        this.blockedTiles = blockedTiles;
     }
 
-        draw() {
-            ctx.drawImage(
-                this.image,
-                0,
-                0,
-                this.image.width,
-                this.image.height,
-                this.position.column * MAP_TILE_SIZE,
-                this.position.row * MAP_TILE_SIZE,
-                this.image.width,
-                this.image.height
-            )
+    static DIRS = [[-1,0],[1,0],[0,-1],[0,1],[-1,1],[1,1],[1,-1],[-1,-1]];
+
+    getNeighbors(row, column) {
+        return Pathfinder.DIRS
+            .map(([dr, dc]) => [row + dr, column + dc])
+            .filter(([r, c]) => r >= 0 && r < MAP_ROWS && c >= 0 && c < MAP_COLUMNS)
+            .map(([r, c]) => tileKey(r, c));
+    }
+
+    calculateCost(key, startRow, startColumn, targetRow, targetColumn) {
+        let keyRow = tileRow(key);
+        let keyColumn = tileColumn(key);
+        let costFromStart = Math.max(Math.abs(startRow - keyRow), Math.abs(startColumn - keyColumn));
+        let costFromTarget = Math.max(Math.abs(targetRow - keyRow), Math.abs(targetColumn - keyColumn));
+        return costFromStart + costFromTarget;
+    }
+
+    calculateClosedCost(key, targetRow, targetColumn) {
+        let keyRow = tileRow(key);
+        let keyColumn = tileColumn(key);
+        return Math.max(Math.abs(targetRow - keyRow), Math.abs(targetColumn - keyColumn));
+    }
+
+    findPath(startRow, startColumn, targetRow, targetColumn) {
+        let startKey = tileKey(startRow, startColumn);
+        let targetKey = tileKey(targetRow, targetColumn);
+
+        if (startKey === targetKey) return [];
+
+        let queueSet = [];
+        let closedSet = new Set();
+        let parentMap = new Map();
+
+        queueSet.push(startKey);
+
+        while (queueSet.length > 0) {
+            let minIdx = 0;
+            for (let i = 1; i < queueSet.length; i++) {
+                if (this.calculateCost(queueSet[i], startRow, startColumn, targetRow, targetColumn) <
+                    this.calculateCost(queueSet[minIdx], startRow, startColumn, targetRow, targetColumn)) {
+                    minIdx = i;
+                }
+            }
+            let queueKey = queueSet.splice(minIdx, 1)[0];
+
+            if (closedSet.has(queueKey) || this.blockedTiles.has(queueKey)) {
+                continue;
+            }
+
+            if (queueKey === targetKey) {
+                let path = [];
+                let currentKey = queueKey;
+                while (currentKey !== startKey) {
+                    path.unshift(currentKey);
+                    currentKey = parentMap.get(currentKey);
+                }
+                return path;
+            }
+
+            closedSet.add(queueKey);
+
+            let neighbors = this.getNeighbors(tileRow(queueKey), tileColumn(queueKey));
+            for (let neighbor of neighbors) {
+                if (!parentMap.has(neighbor) && neighbor !== startKey) {
+                    parentMap.set(neighbor, queueKey);
+                }
+                queueSet.push(neighbor);
+            }
         }
+
+        // No path found -- walk as close as possible
+        let closedArray = Array.from(closedSet);
+        closedArray.sort((a, b) =>
+            this.calculateClosedCost(a, targetRow, targetColumn) -
+            this.calculateClosedCost(b, targetRow, targetColumn)
+        );
+        let path = [];
+        let currentKey = closedArray[0];
+        while (currentKey !== startKey) {
+            path.unshift(currentKey);
+            currentKey = parentMap.get(currentKey);
+        }
+        return path;
+    }
 }
 
 class Player {
@@ -200,8 +242,6 @@ class Player {
         this.position = position;
         this.startRow = position.row;
         this.startColumn = position.column;
-        this.currentRow = 0;
-        this.currentColumn = 0;
         this.targetRow = 0;
         this.targetColumn = 0;
         this.offset = offset;
@@ -214,156 +254,29 @@ class Player {
         };
 
         this.isMining = false;
-        this.isSmelting = false;
         this.isPickingUp = false;
         this.isAttacking = false;
-        this.smeltingProgress = 0;
-        this.queueSet = [];
-        this.closedSet = [];
-        this.collisionsMap = [];
-        this.boundaries = [];
-        this.boundaryKeys = [];
         this.storedPath = [];
 
-        for (let i = 0; i < collisions.length; i+=MAP_COLUMNS) {
-            this.collisionsMap.push(collisions.slice(i,i+MAP_COLUMNS));
+        this.interpStart = { x: 0, y: 0 };
+        this.interpOffset = { x: 0, y: 0 };
+        this.isMoving = false;
+        this.moveStartTime = 0;
+
+        const blockedTiles = new Set();
+        for (let i = 0; i < collisions.length; i++) {
+            if (collisions[i] === COLLISION_TILE_ID) {
+                blockedTiles.add(i);
+            }
         }
-
-        this.collisionsMap.forEach((row, i) => {
-            row.forEach((symbol, j) => {
-                if (symbol === COLLISION_TILE_ID) {
-                    this.boundaries.push(
-                        new Boundary({
-                            position: {
-                                x: j * MAP_TILE_SIZE,
-                                y: i * MAP_TILE_SIZE
-                            }
-                        })
-                    )
-                    this.boundaryKeys.push(`${i}x${j}`);
-                }
-            })
-        })
-    }
-
-    getNeighbors(row, column) {
-        let neighbors = [];
-        if (row - 1 >= 0)
-            neighbors.push(`${row - 1}x${column}`);
-        if (row + 1 <= MAP_ROWS - 1)
-            neighbors.push(`${row + 1}x${column}`);
-        if (column - 1 >= 0)
-            neighbors.push(`${row}x${column - 1}`);
-        if (column + 1 <= MAP_COLUMNS - 1)
-            neighbors.push(`${row}x${column + 1}`);
-        if (column + 1 <= MAP_COLUMNS - 1 && row - 1 >= 0)
-            neighbors.push(`${row - 1}x${column + 1}`);
-        if (column + 1 <= MAP_COLUMNS - 1 && row + 1 <= MAP_ROWS - 1)
-            neighbors.push(`${row + 1}x${column + 1}`);
-        if (column - 1 >= 0 && row + 1 <= MAP_ROWS - 1)
-            neighbors.push(`${row + 1}x${column - 1}`);
-        if (column - 1 >= 0 && row - 1 >= 0)
-            neighbors.push(`${row - 1}x${column - 1}`);
-        return neighbors;
-    }
-
-    calculateCost(a) {
-        let key = a.split("x");
-        let keyRow = Number(key[0]);
-        let keyColumn = Number(key[1]);
-
-        let costFromStart = Math.max(Math.abs(this.startRow - keyRow), Math.abs(this.startColumn - keyColumn));
-        let costFromTarget = Math.max(Math.abs(this.targetRow - keyRow), Math.abs(this.targetColumn - keyColumn));
-
-        let totalCost = costFromStart + costFromTarget;
-        return totalCost;
-    }
-
-    calculateClosedCost(a) {
-        let key = a.split("x");
-        let keyRow = Number(key[0]);
-        let keyColumn = Number(key[1]);
-
-        let costFromTarget = Math.max(Math.abs(this.targetRow - keyRow), Math.abs(this.targetColumn - keyColumn));
-        return costFromTarget;
-    }
-
-    sortQueue() {
-        this.queueSet.sort((a, b) => this.calculateCost(a) - this.calculateCost(b));
-    }
-
-    sortClosedSet() {
-        this.closedSet.sort((a, b) => this.calculateClosedCost(a) - this.calculateClosedCost(b));
+        this.pathfinder = new Pathfinder(blockedTiles);
     }
 
     generatePathway() {
-        // Reset pathfinding variables
-        this.storedPath = [];
-        this.queueSet = [];
-        this.closedSet = [];
-        let parentMap = {};
-        let startKey = `${this.startRow}x${this.startColumn}`;
-        let targetKey = `${this.targetRow}x${this.targetColumn}`;
-
-        // Add startKey to queue
-        this.queueSet.push(startKey);
-
-        // While queueSet is not empty, sort and filter the queue
-        while (this.queueSet.length > 0) {
-            this.sortQueue();
-            let queueKey = this.queueSet[0];
-            if (startKey === targetKey) {
-                this.storedPath = [];
-                return;
-            }
-            // If the queueKey is already in closedSet
-            else if (this.closedSet.includes(queueKey)) {
-                this.queueSet.shift();
-                continue;
-            }
-            // If the queueKey is a boundary
-            else if (this.boundaryKeys.includes(queueKey)) {
-                this.queueSet.shift();
-                continue;
-            }
-            // If target is found
-            else if (queueKey === targetKey) {
-                let currentKey = queueKey;
-                while (currentKey != startKey) {
-                    this.storedPath.unshift(currentKey);
-                    currentKey = parentMap[currentKey];
-                }
-                break;
-            }
-            // If the queueKey is not the target, in closedSet, or a boundary
-            else {
-                // Add the queueKey to closedSet
-                this.closedSet.push(queueKey);
-
-                // Remove queueKey from queueSet, set new currentRow and currentColumn, and get neighbors
-                let expandedKey = this.queueSet.shift();
-                let parts = expandedKey.split("x");
-                this.currentRow = Number(parts[0]);
-                this.currentColumn = Number(parts[1]);
-                
-                let neighbors = this.getNeighbors(this.currentRow, this.currentColumn);
-                for (let neighbor of neighbors) {
-                    if (!parentMap[neighbor] && neighbor !== startKey) {
-                        parentMap[neighbor] = expandedKey;
-                    }
-                    this.queueSet.push(neighbor);
-                }
-            }
-        }
-        if (this.storedPath.length === 0) {
-            this.sortClosedSet();
-            let currentKey = this.closedSet[0];
-            while (currentKey != startKey) {
-                this.storedPath.unshift(currentKey);
-                currentKey = parentMap[currentKey];
-            }
-
-        }
+        this.storedPath = this.pathfinder.findPath(
+            this.startRow, this.startColumn,
+            this.targetRow, this.targetColumn
+        );
     }
 
     setState(stateName) {
@@ -379,13 +292,18 @@ class Player {
         this.currentState = stateName;
     }
 
-    // Move the player along the storedPath
     movePlayer() {
         if (this.storedPath.length > 0) {
+            this.isMoving = true;
             this.setState("walking");
-            let path = this.storedPath[0].split("x");
-            let pathRow = Number(path[0]);
-            let pathColumn = Number(path[1]);
+
+            let nextKey = this.storedPath[0];
+            let pathRow = tileRow(nextKey);
+            let pathColumn = tileColumn(nextKey);
+
+            let deltaColumn = pathColumn - this.position.column;
+            let deltaRow = pathRow - this.position.row;
+
             this.position.column = pathColumn;
             this.position.row = pathRow;
             this.startRow = pathRow;
@@ -393,12 +311,20 @@ class Player {
             localSave.position.column = pathColumn;
             localSave.position.row = pathRow;
             this.storedPath.shift();
+
+            this.interpStart = {
+                x: -deltaColumn * MAP_TILE_SIZE,
+                y: -deltaRow * MAP_TILE_SIZE
+            };
+
+            this.moveStartTime = performance.now();
         }
         else {
             this.setState("idle");
+            this.isMoving = false;
         }
     }
-    
+
     mineRock() {
         if (!this.isMining) return;
 
@@ -410,7 +336,7 @@ class Player {
             this.isMining = false;
             this.setState("idle");
             console.log("You mined a tin!");
-            xpDrops.push(tinOreDrop)
+            awardXP("Mining", ITEMS.tinOre.mining.xp);
             const emptySlot = findEmptyInventorySlot();
             if (!checkInventoryFull()) {
                 localSave.inventoryItems[emptySlot] = ITEMS.tinOre.id;
@@ -420,42 +346,11 @@ class Player {
                 dropItem(ITEMS.tinOre, this.position);
                 console.log("Inventory full, dropping tin ore");
             }
-            localSave.miningXP += 1;
         }
-    }
-
-    smeltOre() {
-        if (!this.isSmelting) return;
-        //     this.setState("smelting");
-        //     this.smeltingProgress++;
-        //     console.log("Smelting!", this.smeltingProgress);
-        //     if (this.smeltingProgress >= 3) {
-        //         this.isSmelting = false;
-        //         this.smeltingProgress = 0;
-        //         this.setState("idle");
-        //         console.log("You smelted a tin ingot!");
-        //     }
-        // }
     }
 
     attackEnemy() {
-        if (!this.isAttacking) return;
-        this.setState("attacking");
-        combatMove = chooseCombatMove();
-        executeCombatMove(combatMove);
-        checkForEnemyDeath();
-        if (goblin.isDead) {
-            this.setState("idle");
-            this.isAttacking = false;
-            return;
-        }
-        enemyCombatMove();
-        checkForPlayerDeath();
-        if (goblin.isDead) {
-            this.setState("idle");
-            this.isAttacking = false;
-            return;
-        }
+        processCombatEncounter();
     }
 
     pickUpItem() {
@@ -464,10 +359,10 @@ class Player {
             this.isPickingUp = false;
             return;
         }
-        const itemFound = droppedItems.find( item => 
+        const itemFound = droppedItems.find( item =>
             item.position.row === this.targetRow &&
             item.position.column === this.targetColumn
-        )
+        );
         if (!itemFound) {
             this.isPickingUp = false;
             return;
@@ -478,18 +373,15 @@ class Player {
         this.isPickingUp = false;
     }
 
-    // Draw the storedPath
     drawStoredPath() {
-        for (let storedTile of this.storedPath) {
-            let path = storedTile.split("x");
-            let pathRow = Number(path[0]);
-            let pathColumn = Number(path[1]);
-            ctx.fillStyle = 'rgba(71, 82, 180, 0.3)'
+        for (let key of this.storedPath) {
+            let pathRow = tileRow(key);
+            let pathColumn = tileColumn(key);
+            ctx.fillStyle = 'rgba(71, 82, 180, 0.3)';
             ctx.fillRect(pathColumn * MAP_TILE_SIZE, pathRow * MAP_TILE_SIZE, MAP_TILE_SIZE, MAP_TILE_SIZE);
         }
     }
 
-    // Draw the player
     draw() {
         ctx.drawImage(
             this.image,
@@ -497,8 +389,8 @@ class Player {
             0,
             this.image.width / this.frames.max,
             this.image.height,
-            this.position.column * MAP_TILE_SIZE - this.offset.x,
-            this.position.row * MAP_TILE_SIZE - this.offset.y,
+            this.position.column * MAP_TILE_SIZE - this.offset.x + this.interpOffset.x,
+            this.position.row * MAP_TILE_SIZE - this.offset.y + this.interpOffset.y,
             this.image.width / this.frames.max,
             this.image.height
         )

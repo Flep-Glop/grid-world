@@ -52,36 +52,99 @@
             "scaleInDock": 1
         },
         "grid-world.tmx": {
-            "scale": 0.7351,
-            "selectedLayer": 6,
+            "scale": 0.7418,
+            "selectedLayer": 18,
             "viewCenter": {
-                "x": 504.0130594476941,
-                "y": 330.56726975921646
+                "x": -107.84578053383666,
+                "y": 331.6257751415476
             }
         },
+        "grid-world.tmx#blacksmith": {
+            "scaleInDock": 1.5519
+        },
+        "grid-world.tmx#bridge-stone": {
+            "scaleInDock": 2.5525
+        },
+        "grid-world.tmx#bridge-wood": {
+            "scaleInDock": 2.5108
+        },
+        "grid-world.tmx#bush": {
+            "scaleInDock": 2.1849
+        },
+        "grid-world.tmx#dirt-path": {
+            "scaleInDock": 4.347
+        },
         "grid-world.tmx#dungeon-props": {
-            "scaleInDock": 2.4626
+            "scaleInDock": 1.5637
+        },
+        "grid-world.tmx#farm-buildings": {
+            "scaleInDock": 2.0545
+        },
+        "grid-world.tmx#farming-and-foraging": {
+            "scaleInDock": 1.8651
+        },
+        "grid-world.tmx#fence-stone": {
+            "scaleInDock": 3.4055
         },
         "grid-world.tmx#floor": {
             "scaleInDock": 1.5346
         },
+        "grid-world.tmx#flower": {
+            "scaleInDock": 3.878
+        },
         "grid-world.tmx#general-props": {
-            "scaleInDock": 1.8507
+            "scaleInDock": 1.8804
         },
         "grid-world.tmx#grass": {
             "scaleInDock": 3.3038
         },
+        "grid-world.tmx#grass-dark-1": {
+            "scaleInDock": 2.5203
+        },
+        "grid-world.tmx#grass-dark-2": {
+            "scaleInDock": 3.3151
+        },
+        "grid-world.tmx#grass-light-1": {
+            "scaleInDock": 1
+        },
+        "grid-world.tmx#grass-light-2": {
+            "scaleInDock": 1
+        },
+        "grid-world.tmx#grass-patches": {
+            "scaleInDock": 3.6111
+        },
         "grid-world.tmx#ground": {
             "scaleInDock": 2.5861
         },
+        "grid-world.tmx#house": {
+            "scaleInDock": 1.4982
+        },
+        "grid-world.tmx#main-spritesheet": {
+            "scaleInDock": 3.305
+        },
+        "grid-world.tmx#npc": {
+            "scaleInDock": 2.8741
+        },
+        "grid-world.tmx#pavement": {
+            "scaleInDock": 3.1799
+        },
+        "grid-world.tmx#sign": {
+            "scaleInDock": 4.1895
+        },
         "grid-world.tmx#structure": {
             "scaleInDock": 1.997
+        },
+        "grid-world.tmx#tree": {
+            "scaleInDock": 3.9554
         },
         "grid-world.tmx#wall": {
             "scaleInDock": 1.707
         },
         "grid-world.tmx#water": {
-            "scaleInDock": 5.34
+            "scaleInDock": 4.7925
+        },
+        "grid-world.tmx#water-plants": {
+            "scaleInDock": 5.211
         }
     },
     "last.exportedFilePath": "/Users/lukelussier/Documents/GitHub/grid-world/tiled",

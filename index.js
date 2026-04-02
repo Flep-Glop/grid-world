@@ -2,6 +2,9 @@ const canvas = document.querySelector("canvas");
 const ctx = canvas.getContext("2d");
 const customContextMenu = document.getElementById("customContextMenu");
 const inventoryContextMenu = document.getElementById("inventoryContextMenu");
+const combatQuizPanel = document.getElementById("combatQuizPanel");
+const combatQuizQuestionEl = document.getElementById("combatQuizQuestion");
+const combatQuizAnswersEl = document.getElementById("combatQuizAnswers");
 
 
 // --- Game State ---
@@ -23,15 +26,12 @@ let localSave = {
         null, null, null, null, 
         null, null, null, null ],
     miningXP: 0,
-    smeltingXP: 0,
+    strengthXP: 0,
+    hitpointsXP: 0,
     position: {
         row: 6,
         column: 12
     }
-};
-let contextTarget = {
-    row: 0,
-    column: 0
 };
 
 
@@ -49,7 +49,6 @@ function clearLocalSave() {
 
 if (localStorage.getItem("localSave")) {
 // nuke option if save is bugged
-// that is really funny lol - getting assets together and all that jazz
     // clearLocalSave();
     // saveLocalSave();
     // console.log("Local save cleared");
@@ -87,7 +86,7 @@ const backgroundSprite = new Sprite({
     }
 });
 
-const playerSprites = preloadImages(playerAnimations);
+let playerSprites = preloadImages(playerAnimations);
 const player = new Player({
     sprites: playerSprites,
     initialState: "idle",
@@ -102,53 +101,54 @@ const player = new Player({
         x: 11,
         y: 11
     },
-    totalHealth: 1000,
-    attackDamage: 10
+    totalHealth: 100,
+    attackDamage: 2
 });
 
 const goblinImage = new Image();
 goblinImage.src = "img/goblin.png";
+
 const goblin = new Enemy({
     image: goblinImage,
-    position: {
-        column: 35,
-        row: 8
-    },
-    totalHealth: 10,
-    attackDamage: 10,
-    dropTable: [],
-    respawnTimer: 0
-})
+    position: { column: 35, row: 8 },
+    totalHealth: 12,
+    attackDamage: 1,
+    action: {
+        actionId: "fight",
+        label: "Attack Goblin",
+        examineText: "Lil green guy with a pointy stick",
+        canInteract: () => !goblin.isDead,
+        onPrimary: startAttackGoblinAt
+    }
+});
+
 
 const rockImage = new Image();
 rockImage.src = "img/rock.png"
+
 const rock = new InteractiveObject({
     image: rockImage,
-    position: {
-        column: 25,
-        row: 5
+    position: { column: 25, row: 5 },
+    action: {
+        actionId: "mine",
+        label: "Mine Tin Rock",
+        examineText: "Big ol' Rock",
+        canInteract: () => true,
+        onPrimary: (row, column) => {startMineAt(row, column);}
     }
 });
 
-const tinOreDrop = new ExperienceDrop({
-    skill: "Mining",
-    amount: ITEMS.tinOre.mining.xp,
-    position: {
-        x: cameraX + 100,
-        y: cameraY + 100
-    }
-});
+const worldObjects = [rock, goblin];
 
 
 function getActionDisplayForTile(hoverRow, hoverColumn) {
-    if (hoverColumn === 25 && hoverRow === 5) {
-        return ACTIONS.mine.id;
-    }
-    if (hoverColumn === 35 && hoverRow === 8) {
-        return ACTIONS.fight.id;
-    }
-    if (hoverColumn === 5 && hoverRow === 10) {
-        return ACTIONS.enter.id;
+    for (const obj of worldObjects) {
+        if (!obj.action) continue;
+        if (obj.position.column === hoverColumn &&
+            obj.position.row === hoverRow &&
+            obj.action.canInteract()) {
+            return obj.action.actionId;
+        }
     }
     return null;
 }
@@ -169,11 +169,61 @@ function showActionForTile(hoverRow, hoverColumn) {
 };
 
 
+// --- Combat quiz (optional buffs: right = double next hit, wrong = skip next player swing) ---
+
+function loadCombatQuestion() {
+    if (!combatQuizQuestionEl || !combatQuizAnswersEl) return;
+    const q = getRandomCombatQuestion();
+    combatQuizQuestionEl.textContent = q.question;
+    combatQuizAnswersEl.innerHTML = "";
+    for (const ans of q.answers) {
+        const btn = document.createElement("button");
+        btn.type = "button";
+        btn.textContent = ans.text;
+        btn.addEventListener("click", () => {
+            if (btn.disabled) return;
+            registerQuizResult(ans.correct);
+            markCombatQuizAnswered();
+            for (const child of combatQuizAnswersEl.children) {
+                child.disabled = true;
+                child.classList.remove("answer-correct", "answer-wrong");
+            }
+            btn.classList.add(ans.correct ? "answer-correct" : "answer-wrong");
+        });
+        combatQuizAnswersEl.appendChild(btn);
+    }
+}
+
+function openCombatQuizPanel() {
+    if (!combatQuizPanel) return;
+    combatQuizPanel.classList.add("visible");
+    loadCombatQuestion();
+}
+
+function closeCombatQuizPanel() {
+    if (!combatQuizPanel) return;
+    combatQuizPanel.classList.remove("visible");
+    combatQuizAnswersEl.innerHTML = "";
+    combatQuizQuestionEl.textContent = "";
+}
+
+document.addEventListener("combatQuizOpen", openCombatQuizPanel);
+document.addEventListener("combatQuizClose", closeCombatQuizPanel);
+document.addEventListener("combatQuizAdvanceQuestion", () => {
+    if (combatQuizPanel && combatQuizPanel.classList.contains("visible")) {
+        loadCombatQuestion();
+    }
+});
+
+combatQuizPanel.addEventListener("click", (e) => {
+    e.stopPropagation();
+});
+
+
 // --- Inventory Functions ---
 
 const inventory = new InventoryUI({
     inventoryItems: localSave.inventoryItems,
-    full: false
 });
 
 function findEmptyInventorySlot() {
@@ -185,11 +235,73 @@ function dropItem(itemData, position) {
     const droppedItem = new DroppedItem({
         itemId: itemData.id,
         position: {
-            column: position.column + 1,
+            column: position.column,
             row: position.row
         },
     })
     droppedItems.push(droppedItem);
+}
+
+function tileHasDroppedItem(row, column) {
+    return droppedItems.some(
+        (item) => item.position.row === row && item.position.column === column
+    );
+}
+
+function applyMidPathStartFromNextStep() {
+    if (player.storedPath.length > 0) {
+        player.startRow = tileRow(player.storedPath[0]);
+        player.startColumn = tileColumn(player.storedPath[0]);
+    }
+}
+
+function setWalkTarget(row, column) {
+    player.targetRow = row;
+    player.targetColumn = column;
+    player.generatePathway();
+}
+
+function walkHereFromMenu(row, column) {
+    setWalkTarget(row, column);
+    player.movePlayer();
+    console.log("Walk Here");
+}
+
+function startPlayerAction(row, column, flag, columnOffset = 0) {
+    player.targetRow = row;
+    player.targetColumn = column + columnOffset;
+    player.generatePathway();
+    player[flag] = true;
+}
+
+function startPickUpAt(row, column) {
+    startPlayerAction(row, column, "isPickingUp");
+}
+
+function startMineAt(row, column) {
+    startPlayerAction(row, column, "isMining", -1);
+}
+
+function startAttackGoblinAt(row, column) {
+    startPlayerAction(row, column, "isAttacking", -1);
+}
+
+/** Priority: pick up > mine > attack. Returns true if a primary action was started. */
+function tryPrimaryWorldAction(row, column) {
+    if (tileHasDroppedItem(row, column)) {
+        startPickUpAt(row, column);
+        return true;
+    }
+    for (const obj of worldObjects) {
+        if (!obj.action) continue;
+        if (obj.position.column === column &&
+            obj.position.row === row &&
+            obj.action.canInteract()) {
+            obj.action.onPrimary(row, column);
+            return true;
+        }
+    }
+    return false;
 }
 
 
@@ -234,68 +346,31 @@ function getActionsForInventorySlot(slot) {
 
 function getActionsForTile(row, column) {
     customContextMenu.innerHTML = "";
-
-    const containsItem = (item) => item.position.row === row && item.position.column === column;
-
     const actions = [
-        {
-            label: "Walk Here",
-            handler: () => {
-                player.targetRow = row;
-                player.targetColumn = column;
-                player.generatePathway();
-                player.movePlayer();
-                console.log("Walk Here");
-                customContextMenu.style.display = 'none';
+        { label: "Walk Here", handler: () => { walkHereFromMenu(row, column); } }
+    ];
+
+    if (tileHasDroppedItem(row, column)) {
+        actions.push({ label: "Pick Up", handler: () => startPickUpAt(row, column) });
+    }
+
+    for (const obj of worldObjects) {
+        if (!obj.action) continue;
+        if (obj.position.row === row &&
+            obj.position.column === column &&
+            obj.action.canInteract()) {
+            actions.push({
+                label: obj.action.label,
+                handler: () => obj.action.onPrimary(row, column)
+            });
+            if (obj.action.examineText) {
+                actions.push({
+                    label: "Examine " + obj.action.label.split(" ").slice(1).join(" "),
+                    handler: () => console.log(obj.action.examineText)
+                });
             }
         }
-    ];
-    if (droppedItems.some(containsItem)) {
-        actions.push({
-            label: "Pick Up",
-            handler: () => {
-                player.targetRow = row;
-                player.targetColumn = column;
-                player.generatePathway();
-                player.isPickingUp = true;
-                customContextMenu.style.display = 'none';
-            }
-        });
     }
-    if (row === rock.position.row && column === rock.position.column) {
-        actions.push({
-            label: "Mine Tin Rock",
-            handler: () => {
-                shownAction = showAction(ACTIONS.mine, { column: column, row: row });
-                player.targetRow = row;
-                player.targetColumn = column;
-                player.generatePathway();
-                player.isMining = true;
-                customContextMenu.style.display = 'none';
-            }
-        });
-        actions.push({
-            label: "Examine Tin Rock",
-            handler: () => {
-                console.log("Big ol' rock");
-                customContextMenu.style.display = 'none';
-            }
-        });
-    }
-
-    if (row === goblin.position.row && column === goblin.position.column && !goblin.isDead) {
-        actions.push({
-            label: "Attack Goblin",
-            handler: () => {
-                player.targetRow = row;
-                player.targetColumn = column - 1;
-                player.generatePathway();
-                player.isAttacking = true;
-                customContextMenu.style.display = 'none';
-            }
-        });
-    }
-
     for (const action of actions) {
         const ul = document.createElement("ul");
         ul.textContent = action.label;
@@ -305,25 +380,28 @@ function getActionsForTile(row, column) {
 }
 
 addEventListener('mousemove', (e) => {
-    let worldPosition = getWorldPosition(e);
-    hoverRow = Math.floor(worldPosition.worldY / MAP_TILE_SIZE);
-    hoverColumn = Math.floor(worldPosition.worldX / MAP_TILE_SIZE);
+    const worldPosition = getWorldPosition(e);
+    const tile = worldToTile(worldPosition.worldX, worldPosition.worldY);
+    hoverRow = tile.row;
+    hoverColumn = tile.column;
     showActionForTile(hoverRow, hoverColumn);
-
 });
 
 addEventListener('click', (e) => {
-    let worldPosition = getWorldPosition(e);
-    if (player.storedPath.length > 0) {
-        let midPath = player.storedPath[0].split("x");
-        let midPathRow = Number(midPath[0]);
-        let midPathColumn = Number(midPath[1]);
-        player.startRow = midPathRow;
-        player.startColumn = midPathColumn;
+    if (e.button !== 0) return;
+    if (e.target.closest("#combatQuizPanel")) return;
+    if (getInventorySlotPosition(e) >= 0) return;
+
+    const worldPosition = getWorldPosition(e);
+    applyMidPathStartFromNextStep();
+
+    const { row, column } = worldToTile(worldPosition.worldX, worldPosition.worldY);
+
+    if (tryPrimaryWorldAction(row, column)) {
+        return;
     }
-    player.targetRow = Math.floor(worldPosition.worldY / MAP_TILE_SIZE);
-    player.targetColumn = Math.floor(worldPosition.worldX / MAP_TILE_SIZE);
-    player.generatePathway();
+
+    setWalkTarget(row, column);
 });
 
 customContextMenu.addEventListener('click', (e) => {
@@ -350,10 +428,9 @@ addEventListener('contextmenu', (e) => {
         inventoryContextMenu.style.display = 'block';
     }
     else {
-        let worldPosition = getWorldPosition(e);
-        contextTarget.row = Math.floor(worldPosition.worldY / MAP_TILE_SIZE);
-        contextTarget.column = Math.floor(worldPosition.worldX / MAP_TILE_SIZE);
-        getActionsForTile(contextTarget.row, contextTarget.column);
+        const worldPosition = getWorldPosition(e);
+        const { row, column } = worldToTile(worldPosition.worldX, worldPosition.worldY);
+        getActionsForTile(row, column);
         customContextMenu.style.top = `${e.pageY}px`;
         customContextMenu.style.left = `${e.pageX}px`;
         customContextMenu.style.display = 'block';
@@ -368,7 +445,6 @@ addEventListener('click', (e) => {
 document.addEventListener("tick", (e) => {
     player.movePlayer();
     player.mineRock();
-    player.smeltOre();
     player.attackEnemy();
     player.pickUpItem();
     respawnTimer();
@@ -376,14 +452,23 @@ document.addEventListener("tick", (e) => {
 });
 
 
+
 // --- Game Loop ---
 
 function animate() {
+
+    if (player.moveStartTime) {
+        let timeElapsed = (performance.now() - player.moveStartTime) / TICK_RATE;
+        timeElapsed = Math.min(timeElapsed, 1);
+        player.interpOffset.x = player.interpStart.x * (1 - timeElapsed);
+        player.interpOffset.y = player.interpStart.y * (1 - timeElapsed);
+    }
+
     window.requestAnimationFrame(animate);
     ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-    cameraX = player.position.column * MAP_TILE_SIZE - canvas.width / ZOOM / 2;
-    cameraY = player.position.row * MAP_TILE_SIZE - canvas.height / ZOOM / 2;
+    cameraX = player.position.column * MAP_TILE_SIZE + player.interpOffset.x - canvas.width / ZOOM / 2;
+    cameraY = player.position.row * MAP_TILE_SIZE + player.interpOffset.y - canvas.height / ZOOM / 2;
 
     xpDrops = xpDrops.filter(xpDrop => !xpDrop.isDone);
 
@@ -408,11 +493,12 @@ function animate() {
     xpDrops.forEach(xpDrop => {
         xpDrop.draw();
     });
-    drawCoordinates(hoverRow, hoverColumn);
+    // drawCoordinates(hoverRow, hoverColumn);
     if (shownAction !== null) {
         shownAction.draw();
     }
     player.draw();
+    updateAndDrawCombatOverlays();
     // player.boundaries.forEach(boundary => {
     //     boundary.draw()
     // });

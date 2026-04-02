@@ -22,6 +22,12 @@ const INVENTORY_CANVAS_Y_END = 564;
 
 const TICK_RATE = 600;
 
+const XP_THRESHOLDS = [5, 10, 15, 20, 50, 100];
+
+
+/** Combat: player swing on encounter ticks 0,4,8,…; goblin on 2,6,10,… (see processCombatEncounter in utility.js). */
+const COMBAT_ENCOUNTER_PERIOD = 4;
+
 const playerAnimations = {
     idle: { src: "img/player-idle.png", frames: { max: 4 } },
     walking: { src: "img/player-walk.png", frames: { max: 8 } },

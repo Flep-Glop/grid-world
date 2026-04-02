@@ -46,10 +46,9 @@ const ITEMS = {
         type: "ore",
         render: { column: 4, row: 5 },
         mining: { level: 1, xp: 1, odds: 2 },
-        smelting: { level: 1, xp: 1, ticks: 3, result: "tinIngot" },
     },
 
-    bronzeIngot: {
+    ironIngot: {
         id: "ironIngot",
         name: "Iron Ingot",
         description: "A chunk of iron ingot.",

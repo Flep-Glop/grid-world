@@ -5,9 +5,18 @@
 <div id="inventoryContextMenu"></div>
 
 <canvas></canvas>
+
+<!-- After canvas so this stacks above the game; otherwise canvas steals clicks on overlapping buttons. -->
+<div id="combatQuizPanel" aria-live="polite">
+    <div id="combatQuizTitle">Combat quiz (optional)</div>
+    <p id="combatQuizQuestion"></p>
+    <div id="combatQuizAnswers"></div>
+</div>
 <script src = "data/constants.js"></script>
 <script src = "data/items.js"></script>
+<script src = "data/combatQuestions.js"></script>
 <script src = "data/collisions.js"></script>
 <script src = "classes.js"></script>
 <script src = "utility.js"></script>
 <script src = "index.js"></script>
+<script src = "assetSwap.js"></script>

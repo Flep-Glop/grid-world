@@ -34,8 +34,79 @@ canvas {
     display: none;
 }
 
-#customContextMenu,
+#customContextMenu ul:hover,
 #inventoryContextMenu ul:hover {
     background-color: #4a4a4a;
+}
+
+#combatQuizPanel {
+    display: none;
+    position: fixed;
+    top: 50%;
+    right: 16px;
+    transform: translateY(-50%);
+    width: min(280px, 40vw);
+    border: 1px solid #ccc;
+    background-color: #000000;
+    color: #b0b0b0;
+    padding: 12px 14px;
+    font-family: system-ui, sans-serif;
+    font-size: 13px;
+    /* Above canvas (canvas follows this in DOM; z-index avoids edge cases with stacking). */
+    z-index: 100;
+    line-height: 1.4;
+}
+
+#combatQuizPanel.visible {
+    display: block;
+}
+
+#combatQuizTitle {
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: #888;
+    margin-bottom: 8px;
+}
+
+#combatQuizQuestion {
+    margin: 0 0 10px 0;
+}
+
+#combatQuizAnswers {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+#combatQuizAnswers button {
+    font: inherit;
+    text-align: left;
+    padding: 8px 10px;
+    border: 1px solid #555;
+    background: #1a1a1a;
+    color: #d0d0d0;
+    cursor: pointer;
+}
+
+#combatQuizAnswers button:hover:not(:disabled) {
+    background-color: #4a4a4a;
+}
+
+#combatQuizAnswers button.answer-correct {
+    background: #153515;
+    border-color: #3d8c3d;
+    color: #b8f0b8;
+}
+
+#combatQuizAnswers button.answer-wrong {
+    background: #351515;
+    border-color: #a04040;
+    color: #f0b0b0;
+}
+
+#combatQuizAnswers button:disabled {
+    cursor: default;
+    opacity: 1;
 }
 
