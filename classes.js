@@ -33,51 +33,152 @@ class Sprite {
     }
 }
 
-class InventoryUI {
-    constructor({ inventoryItems }) {
-        this.inventoryItems = inventoryItems;
-        this.slotSize = 16;
-        this.slotRows = 7;
-        this.slotColumns = 4;
-        this.slots = this.slotRows * this.slotColumns;
-        this.width = this.slotColumns * this.slotSize;
-        this.height = this.slotRows * this.slotSize;
-        this.position = {
-            x: 570,
-            y: 120
-        };
+class SidePanelUI {
+    constructor() {
+        this.activeTab = "inventory";
+        this.position = { x: 0, y: 0 };
+        this.width = INVENTORY_COLUMNS * INVENTORY_TILE_SIZE;
+        this.height = INVENTORY_ROWS * INVENTORY_TILE_SIZE;
     }
 
     draw() {
-        ctx.fillStyle = "rgba(0, 0, 0, 0.5)";
-        ctx.fillRect(this.position.x, this.position.y, this.width, this.height)
-        for (let i = 0; i < this.inventoryItems.length; i++) {
-            const itemId = this.inventoryItems[i];
-            if (itemId === null) continue;
+        let x = this.position.x;
+        let y = this.position.y;
 
-            const render = ITEMS[itemId].render;
-            const column = i % this.slotColumns;
-            const row = Math.floor(i / this.slotColumns);
-            const drawX = this.position.x + column * this.slotSize;
-            const drawY = this.position.y + row * this.slotSize;
+        this.drawTabRow(UPPER_TABS, x, y);
+        y += TAB_SIZE;
 
-            ctx.drawImage(
-                mainSpriteSheet,
-                render.column * this.slotSize,
-                render.row * this.slotSize,
-                this.slotSize,
-                this.slotSize,
-                drawX, drawY, this.slotSize, this.slotSize
-            );
+        ctx.fillStyle = "rgba(0, 0, 0, 0.9)";
+        ctx.fillRect(x, y, this.width, this.height);
+        this.drawContent(x, y);
+        y += this.height;
+
+        this.drawTabRow(LOWER_TABS, x, y);
+    }
+
+    drawTabRow(tabs, x, y) {
+        for (let i = 0; i < tabs.length; i++) {
+            let tx = x + i * TAB_SIZE;
+            let active = tabs[i].id === this.activeTab;
+
+            ctx.fillStyle = active ? "rgba(100, 80, 60, 0.9)" : "rgba(40, 35, 30, 0.8)";
+            ctx.fillRect(tx, y, TAB_SIZE, TAB_SIZE);
+            ctx.strokeStyle = active ? "#8a7a5a" : "#555";
+            ctx.lineWidth = 0.5;
+            ctx.strokeRect(tx + 0.25, y + 0.25, TAB_SIZE - 0.5, TAB_SIZE - 0.5);
+
+            ctx.fillStyle = active ? "#fff" : "#aaa";
+            ctx.font = "4px Arial";
+            ctx.textAlign = "center";
+            ctx.textBaseline = "middle";
+            ctx.fillText(tabs[i].label, tx + TAB_SIZE / 2, y + TAB_SIZE / 2);
         }
+        ctx.textAlign = "left";
+        ctx.textBaseline = "alphabetic";
+    }
+
+    drawContent(x, y) {
+        if (this.activeTab === "inventory") {
+            for (let i = 0; i < localSave.inventoryItems.length; i++) {
+                let itemId = localSave.inventoryItems[i];
+                if (itemId === null) continue;
+                let render = ITEMS[itemId].render;
+                let col = i % INVENTORY_COLUMNS;
+                let row = Math.floor(i / INVENTORY_COLUMNS);
+                ctx.drawImage(
+                    mainSpriteSheet,
+                    render.column * INVENTORY_TILE_SIZE, render.row * INVENTORY_TILE_SIZE,
+                    INVENTORY_TILE_SIZE, INVENTORY_TILE_SIZE,
+                    x + col * INVENTORY_TILE_SIZE, y + row * INVENTORY_TILE_SIZE,
+                    INVENTORY_TILE_SIZE, INVENTORY_TILE_SIZE
+                );
+            }
+        }
+        else if (this.activeTab === "skills") {
+            ctx.fillStyle = "#ccc";
+            ctx.font = "5px Arial";
+            let skills = [
+                { name: "Mining", xp: localSave.miningXP },
+                { name: "Strength", xp: localSave.strengthXP },
+                { name: "Hitpoints", xp: localSave.hitpointsXP },
+            ];
+            for (let i = 0; i < skills.length; i++) {
+                ctx.fillText(skills[i].name + ": Lv " + getLevel(skills[i].xp), x + 4, y + 10 + i * 12);
+            }
+        }
+        else if (this.activeTab === "equipment") {
+            let slotIndex = 0;
+            for (let equipmentId of Object.values(localSave.equipmentItems)) {
+                if (equipmentId === null) { slotIndex++; continue; }
+                let render = ITEMS[equipmentId].render;
+                let col = slotIndex % INVENTORY_COLUMNS;
+                let row = Math.floor(slotIndex / INVENTORY_COLUMNS);
+                ctx.drawImage(
+                    mainSpriteSheet,
+                    render.column * INVENTORY_TILE_SIZE, render.row * INVENTORY_TILE_SIZE,
+                    INVENTORY_TILE_SIZE, INVENTORY_TILE_SIZE,
+                    x + col * INVENTORY_TILE_SIZE, y + row * INVENTORY_TILE_SIZE,
+                    INVENTORY_TILE_SIZE, INVENTORY_TILE_SIZE
+                );
+                slotIndex++;
+            }
+        }
+        else {
+            ctx.fillStyle = "#888";
+            ctx.font = "5px Arial";
+            ctx.textAlign = "center";
+            ctx.fillText(this.activeTab, x + this.width / 2, y + this.height / 2);
+            ctx.textAlign = "left";
+        }
+    }
+
+    isInBounds(canvasX, canvasY) {
+        let rx = canvasX - SIDE_PANEL_WORLD_X * ZOOM;
+        let ry = canvasY - SIDE_PANEL_WORLD_Y * ZOOM;
+        return rx >= 0 && rx < this.width * ZOOM
+            && ry >= 0 && ry < (TAB_SIZE * 2 + this.height) * ZOOM;
+    }
+
+    handleClick(canvasX, canvasY) {
+        let rx = canvasX - SIDE_PANEL_WORLD_X * ZOOM;
+        let ry = canvasY - SIDE_PANEL_WORLD_Y * ZOOM;
+        let tabH = TAB_SIZE * ZOOM;
+
+        if (ry < tabH) {
+            let i = Math.floor(rx / tabH);
+            if (i < UPPER_TABS.length) this.activeTab = UPPER_TABS[i].id;
+        }
+        else if (ry >= tabH + this.height * ZOOM) {
+            let i = Math.floor(rx / tabH);
+            if (i < LOWER_TABS.length) this.activeTab = LOWER_TABS[i].id;
+        }
+    }
+
+    getClickedSlot(canvasX, canvasY) {
+        if (this.activeTab !== "inventory" && this.activeTab !== "equipment") return -1;
+        let rx = canvasX - SIDE_PANEL_WORLD_X * ZOOM;
+        let ry = canvasY - SIDE_PANEL_WORLD_Y * ZOOM - TAB_SIZE * ZOOM;
+        if (rx < 0 || rx >= this.width * ZOOM) return -1;
+        if (ry < 0 || ry >= this.height * ZOOM) return -1;
+        let slot = Math.floor(ry / (INVENTORY_TILE_SIZE * ZOOM)) * INVENTORY_COLUMNS
+                 + Math.floor(rx / (INVENTORY_TILE_SIZE * ZOOM));
+        if (this.activeTab === "inventory") {
+            return slot < INVENTORY_SLOTS ? slot : -1;
+        }
+        let equipmentKeys = Object.keys(localSave.equipmentItems);
+        return slot < equipmentKeys.length ? slot : -1;
     }
 }
 
 class InteractiveObject {
-    constructor({ image, position, action }) {
+    constructor({ image, position, action, offset = { x: 0, y: 0 } }) {
         this.image = image;
         this.position = position;
         this.action = action;
+        this.offset = {
+            x: offset.x,
+            y: offset.y
+        }
         this.image.onload = () => {
             this.width = this.image.width;
             this.height = this.image.height;
@@ -91,8 +192,8 @@ class InteractiveObject {
             0,
             this.image.width,
             this.image.height,
-            this.position.column * MAP_TILE_SIZE,
-            this.position.row * MAP_TILE_SIZE,
+            this.position.column * MAP_TILE_SIZE - this.offset.x,
+            this.position.row * MAP_TILE_SIZE - this.offset.y,
             this.image.width,
             this.image.height
         )
@@ -107,7 +208,7 @@ class ExperienceDrop {
         this.amount = amount;
         this.yOffset = yOffset || 0;
         this.frameCount = 0;
-        this.duration = 180;
+        this.duration = 1000;
         this.isDone = false;
     }
 
@@ -118,7 +219,7 @@ class ExperienceDrop {
         ctx.fillText(
             this.skill + ": " + this.amount + " XP",
             cameraX + 400,
-            cameraY + 60 + this.yOffset - this.frameCount * 0.4
+            cameraY + 60 + this.yOffset - this.frameCount * 0.1
         );
         if (this.frameCount < this.duration) {
             this.frameCount++;
@@ -129,13 +230,15 @@ class ExperienceDrop {
 }
 
 class Enemy extends InteractiveObject {
-    constructor({ image, position, totalHealth, attackDamage, dropTable, respawnTimer, action }) {
-        super({ image, position, action });
+    constructor({ image, enemyId, name, position, totalHealth, attackDamage, dropTable, respawnTimer, action , offset = { x: 0, y: 0 } }) {
+        super({ image, position, action, offset });
+        this.enemyId = enemyId;
         this.totalHealth = totalHealth;
         this.currentHealth = totalHealth;
         this.attackDamage = attackDamage;
         this.slashAccuracy = 0.75;
         this.dropTable = dropTable;
+        this.name = name;
         this.isDead = false;
         this.respawnTimer = respawnTimer || 0;
     }

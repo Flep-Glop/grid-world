@@ -1,7 +1,14 @@
-<link rel="stylesheet" href="global.css">
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Grid World</title>
+    <link rel="stylesheet" href="global.css">
+</head>
+<body>
 
 <div id="customContextMenu"></div>
-
+<div id="hoverTooltip"></div>
 <div id="inventoryContextMenu"></div>
 
 <canvas></canvas>
@@ -12,11 +19,26 @@
     <p id="combatQuizQuestion"></p>
     <div id="combatQuizAnswers"></div>
 </div>
-<script src = "data/constants.js"></script>
-<script src = "data/items.js"></script>
-<script src = "data/combatQuestions.js"></script>
-<script src = "data/collisions.js"></script>
-<script src = "classes.js"></script>
-<script src = "utility.js"></script>
-<script src = "index.js"></script>
-<script src = "assetSwap.js"></script>
+
+<!-- Layer 1: Pure data -->
+<script src="data/constants.js"></script>
+<script src="data/items.js"></script>
+<script src="data/combatQuestions.js"></script>
+<script src="data/collisions.js"></script>
+
+<!-- Layer 2: Class definitions -->
+<script src="classes.js"></script>
+
+<!-- Layer 3: Function definitions (no top-level statements that need game objects) -->
+<script src="utility.js"></script>
+<script src="actions.js"></script>
+<script src="combat.js"></script>
+
+<!-- Layer 4: Initialization (creates everything, wires events, starts the game) -->
+<script src="index.js"></script>
+
+<!-- Layer 5: Post-init -->
+<script src="assetSwap.js"></script>
+
+</body>
+</html>

@@ -20,9 +20,28 @@ const INVENTORY_CANVAS_X_END = 1008;
 const INVENTORY_CANVAS_Y_START = 340;
 const INVENTORY_CANVAS_Y_END = 564;
 
+const TAB_SIZE = 16;
+
+const UPPER_TABS = [
+    { id: "combat",    label: "Cb" },
+    { id: "skills",    label: "Sk" },
+    { id: "quests",    label: "Qu" },
+    { id: "inventory", label: "Inv" },
+];
+
+const LOWER_TABS = [
+    { id: "equipment", label: "Eq" },
+    { id: "prayer",    label: "Pr" },
+    { id: "options",   label: "Op" },
+    { id: "music",     label: "Mu" },
+];
+
+const SIDE_PANEL_WORLD_X = 445;
+const SIDE_PANEL_WORLD_Y = 140;
+
 const TICK_RATE = 600;
 
-const XP_THRESHOLDS = [5, 10, 15, 20, 50, 100];
+const XP_THRESHOLDS = [20, 50, 100, 200, 500, 1000];
 
 
 /** Combat: player swing on encounter ticks 0,4,8,…; goblin on 2,6,10,… (see processCombatEncounter in utility.js). */

@@ -3,9 +3,10 @@
         "height": 4300,
         "width": 2
     },
-    "activeFile": "grid-world.tmx",
+    "activeFile": "room-smith.tmx",
     "expandedProjectPaths": [
     ],
+    "file.lastUsedOpenFilter": "All Files (*)",
     "fileStates": {
         "": {
             "scaleInDock": 4.0144
@@ -51,12 +52,29 @@
         "/Users/lukelussier/Documents/GitHub/the-observatory-local/public/images/observatory.tmx#structure": {
             "scaleInDock": 1
         },
+        "cave.tmx": {
+            "scale": 1.9483,
+            "selectedLayer": 0,
+            "viewCenter": {
+                "x": 159.11307293537956,
+                "y": 152.4405892316378
+            }
+        },
+        "cave.tmx#dungeon-props": {
+            "scaleInDock": 1.9569
+        },
+        "cave.tmx#ground": {
+            "scaleInDock": 2.3699
+        },
+        "cave.tmx#structure": {
+            "scaleInDock": 1.9283
+        },
         "grid-world.tmx": {
             "scale": 0.7418,
             "selectedLayer": 18,
             "viewCenter": {
-                "x": -107.84578053383666,
-                "y": 331.6257751415476
+                "x": 839.8490159072526,
+                "y": 368.0237260717174
             }
         },
         "grid-world.tmx#blacksmith": {
@@ -145,22 +163,91 @@
         },
         "grid-world.tmx#water-plants": {
             "scaleInDock": 5.211
+        },
+        "room-city-hall.tmx": {
+            "scale": 2.2111,
+            "selectedLayer": 1,
+            "viewCenter": {
+                "x": 135.2268101849758,
+                "y": 155.57867124960427
+            }
+        },
+        "room-city-hall.tmx#floor": {
+            "scaleInDock": 1
+        },
+        "room-city-hall.tmx#general-props": {
+            "scaleInDock": 1.48
+        },
+        "room-city-hall.tmx#structure": {
+            "scaleInDock": 1
+        },
+        "room-city-hall.tmx#wall": {
+            "scaleInDock": 1
+        },
+        "room-shop.tmx": {
+            "scale": 1.9428819444444443,
+            "selectedLayer": 0,
+            "viewCenter": {
+                "x": 144.1158073451881,
+                "y": 144.1158073451881
+            }
+        },
+        "room-shop.tmx#floor": {
+            "scaleInDock": 1
+        },
+        "room-shop.tmx#general-props": {
+            "scaleInDock": 1
+        },
+        "room-shop.tmx#structure": {
+            "scaleInDock": 1
+        },
+        "room-shop.tmx#wall": {
+            "scaleInDock": 1
+        },
+        "room-smith.tmx": {
+            "scale": 2.8818,
+            "selectedLayer": 0,
+            "viewCenter": {
+                "x": 144.00721771115275,
+                "y": 141.2311749600944
+            }
+        },
+        "room-smith.tmx#floor": {
+            "scaleInDock": 1
+        },
+        "room-smith.tmx#general-props": {
+            "scaleInDock": 1.6538
+        },
+        "room-smith.tmx#npc": {
+            "scaleInDock": 3.392
+        },
+        "room-smith.tmx#structure": {
+            "scaleInDock": 1
+        },
+        "room-smith.tmx#wall": {
+            "scaleInDock": 1
         }
     },
     "last.exportedFilePath": "/Users/lukelussier/Documents/GitHub/grid-world/tiled",
     "last.imagePath": "/Users/lukelussier/Documents/GitHub/grid-world/tiled",
-    "map.height": 36,
+    "map.height": 18,
     "map.lastUsedExportFilter": "JSON map files (*.tmj *.json)",
     "map.lastUsedFormat": "tmx",
     "map.tileHeight": 16,
     "map.tileWidth": 16,
-    "map.width": 64,
+    "map.width": 18,
     "openFiles": [
-        "grid-world.tmx"
+        "grid-world.tmx",
+        "cave.tmx",
+        "room-smith.tmx",
+        "room-shop.tmx"
     ],
     "project": "grid-world.tiled-project",
     "recentFiles": [
         "grid-world.tmx",
+        "cave.tmx",
+        "room-shop.tmx",
+        "room-smith.tmx",
         "/Users/lukelussier/Documents/GitHub/the-observatory-local/public/images/observatory.tmx"
     ],
     "tileset.embedInMap": true,

@@ -1,3 +1,5 @@
+/* Global Styles */
+
 * {
     margin: 0;
     padding: 0;
@@ -24,6 +26,8 @@ canvas {
     aspect-ratio: 16 / 9;
 }
 
+/* Context Menus */
+
 #customContextMenu,
 #inventoryContextMenu {
     position: absolute;
@@ -39,11 +43,14 @@ canvas {
     background-color: #4a4a4a;
 }
 
+
+/* Combat Quiz Panel */
+
 #combatQuizPanel {
     display: none;
     position: fixed;
-    top: 50%;
-    right: 16px;
+    top: 75%;
+    right: 35%;
     transform: translateY(-50%);
     width: min(280px, 40vw);
     border: 1px solid #ccc;
@@ -110,3 +117,25 @@ canvas {
     opacity: 1;
 }
 
+
+/* Action Tooltips */
+
+.action-verb {
+    color: #888;
+}
+
+.action-noun {
+    color: #e4c150;
+}
+
+#hoverTooltip {
+    position: fixed;
+    pointer-events: none;
+    color: yellow;
+    font-family: runescape, sans-serif;
+    font-size: 14px;
+    background: rgba(0, 0, 0, 0.6);
+    padding: 2px 6px;
+    display: none;
+    z-index: 100;
+}

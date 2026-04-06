@@ -1,3 +1,5 @@
+// --- DOM References ---
+
 const canvas = document.querySelector("canvas");
 const ctx = canvas.getContext("2d");
 const customContextMenu = document.getElementById("customContextMenu");
@@ -16,6 +18,13 @@ let droppedItems = [];
 let shownAction = null;
 let hoverRow = 0;
 let hoverColumn = 0;
+let combatEncounterTick = 0;
+let combatRangeLatch = false;
+let skipNextPlayerAttack = false;
+let doubleNextPlayerAttack = false;
+let combatQuizAwaitingPlayerTurn = false;
+let combatHitSplats = [];
+let currentEnemy = null;
 let localSave = {
     inventoryItems: [
         null, null, null, null, 
@@ -25,17 +34,30 @@ let localSave = {
         null, null, null, null, 
         null, null, null, null, 
         null, null, null, null ],
+    equipmentItems: { 
+        helmet: null,
+        gloves: null, 
+        boots: null, 
+        ring: null, 
+        amulet: null, 
+        shield: null, 
+        sword: null },
     miningXP: 0,
     strengthXP: 0,
     hitpointsXP: 0,
+    skill: {
+        miningLevel: 0,
+        strengthLevel: 0,
+        hitpointsLevel: 0
+    },
     position: {
-        row: 6,
+        row: 8,
         column: 12
     }
 };
 
 
-// --- Local Save Functions ---
+// --- Local Save ---
 
 function saveLocalSave() {
     localStorage.setItem("localSave", JSON.stringify(localSave));
@@ -48,13 +70,12 @@ function clearLocalSave() {
 }
 
 if (localStorage.getItem("localSave")) {
-// nuke option if save is bugged
     // clearLocalSave();
-    // saveLocalSave();
-    // console.log("Local save cleared");
     loadLocalSave();
     console.log("Local save loaded");
 }
+
+localSave.skill.strengthLevel = getLevel(localSave.strengthXP);
 
 
 // --- Canvas Setup ---
@@ -66,7 +87,7 @@ window.addEventListener('resize', resizeCanvas);
 resizeCanvas();
 
 
-// --- Game Objects ---
+// --- Image Loading ---
 
 const mainSpriteSheet = new Image();
 mainSpriteSheet.src = "img/main-spritesheet.png";
@@ -76,6 +97,24 @@ actionSpriteSheet.src = "img/action-spritesheet.png";
 
 const backgroundImage = new Image();
 backgroundImage.src = "img/grid-world.png";
+
+const minotaurImage = new Image();
+minotaurImage.src = "img/minotaur.png";
+
+const snatcherImage = new Image();
+snatcherImage.src = "img/snatcher.png";
+
+const goblinImage = new Image();
+goblinImage.src = "img/goblin.png";
+
+const rockImage = new Image();
+rockImage.src = "img/rock.png";
+
+let playerSprites = preloadImages(playerAnimations);
+
+
+// --- Game Objects ---
+
 const backgroundSprite = new Sprite({
     image: backgroundImage,
     position: {
@@ -86,7 +125,6 @@ const backgroundSprite = new Sprite({
     }
 });
 
-let playerSprites = preloadImages(playerAnimations);
 const player = new Player({
     sprites: playerSprites,
     initialState: "idle",
@@ -102,29 +140,64 @@ const player = new Player({
         y: 11
     },
     totalHealth: 100,
-    attackDamage: 2
+    attackDamage: localSave.skill.strengthLevel
 });
 
-const goblinImage = new Image();
-goblinImage.src = "img/goblin.png";
-
-const goblin = new Enemy({
-    image: goblinImage,
-    position: { column: 35, row: 8 },
+const minotaur = new Enemy({
+    image: minotaurImage,
+    position: { column: 44, row: 6 },
+    offset: {
+        x: 2,
+        y: 4
+    },
     totalHealth: 12,
     attackDamage: 1,
     action: {
         actionId: "fight",
-        label: "Attack Goblin",
-        examineText: "Lil green guy with a pointy stick",
-        canInteract: () => !goblin.isDead,
-        onPrimary: startAttackGoblinAt
+        label: "Attack Goatman",
+        examineText: "Big ol' goat man combo duo thingy",
+        canInteract: () => !minotaur.isDead,
+        onPrimary: startAttackCurrentEnemyAt
     }
 });
 
+const snatcher = new Enemy({
+    image: snatcherImage,
+    position: { column: 14, row: 26 },
+    offset: {
+        x: 2,
+        y: 4
+    },
+    totalHealth: 12,
+    attackDamage: 1,
+    action: {
+        actionId: "fight",
+        label: "Attack Snatcher",
+        examineText: "Big ol' snatcher",
+        canInteract: () => !snatcher.isDead,
+        onPrimary: startAttackCurrentEnemyAt
+    }
+});
 
-const rockImage = new Image();
-rockImage.src = "img/rock.png"
+const goblin = new Enemy({
+    enemyId: "goblin",
+    image: goblinImage,
+    name: "Goblin",
+    position: { column: 35, row: 8 },
+    offset: {
+        x: 2,
+        y: 4
+    },
+    totalHealth: 24,
+    attackDamage: 1,
+    action: {
+        actionId: "fight",
+        label: "Attack",
+        examineText: "Lil green guy with a pointy stick",
+        canInteract: () => !goblin.isDead,
+        onPrimary: startAttackCurrentEnemyAt
+    }
+});
 
 const rock = new InteractiveObject({
     image: rockImage,
@@ -138,74 +211,12 @@ const rock = new InteractiveObject({
     }
 });
 
-const worldObjects = [rock, goblin];
+const worldObjects = [rock, goblin, minotaur, snatcher];
+
+const sidePanel = new SidePanelUI();
 
 
-function getActionDisplayForTile(hoverRow, hoverColumn) {
-    for (const obj of worldObjects) {
-        if (!obj.action) continue;
-        if (obj.position.column === hoverColumn &&
-            obj.position.row === hoverRow &&
-            obj.action.canInteract()) {
-            return obj.action.actionId;
-        }
-    }
-    return null;
-}
-
-function showActionForTile(hoverRow, hoverColumn) {
-    let actionId = getActionDisplayForTile(hoverRow, hoverColumn);
-    if (actionId !== null) {
-        shownAction = new ActionDisplay({
-            actionId: actionId,
-            hoverPosition: {
-                column: hoverColumn,
-                row: hoverRow
-            }
-        });
-    } else {
-        shownAction = null;
-    }
-};
-
-
-// --- Combat quiz (optional buffs: right = double next hit, wrong = skip next player swing) ---
-
-function loadCombatQuestion() {
-    if (!combatQuizQuestionEl || !combatQuizAnswersEl) return;
-    const q = getRandomCombatQuestion();
-    combatQuizQuestionEl.textContent = q.question;
-    combatQuizAnswersEl.innerHTML = "";
-    for (const ans of q.answers) {
-        const btn = document.createElement("button");
-        btn.type = "button";
-        btn.textContent = ans.text;
-        btn.addEventListener("click", () => {
-            if (btn.disabled) return;
-            registerQuizResult(ans.correct);
-            markCombatQuizAnswered();
-            for (const child of combatQuizAnswersEl.children) {
-                child.disabled = true;
-                child.classList.remove("answer-correct", "answer-wrong");
-            }
-            btn.classList.add(ans.correct ? "answer-correct" : "answer-wrong");
-        });
-        combatQuizAnswersEl.appendChild(btn);
-    }
-}
-
-function openCombatQuizPanel() {
-    if (!combatQuizPanel) return;
-    combatQuizPanel.classList.add("visible");
-    loadCombatQuestion();
-}
-
-function closeCombatQuizPanel() {
-    if (!combatQuizPanel) return;
-    combatQuizPanel.classList.remove("visible");
-    combatQuizAnswersEl.innerHTML = "";
-    combatQuizQuestionEl.textContent = "";
-}
+// --- Event Listeners ---
 
 document.addEventListener("combatQuizOpen", openCombatQuizPanel);
 document.addEventListener("combatQuizClose", closeCombatQuizPanel);
@@ -219,178 +230,46 @@ combatQuizPanel.addEventListener("click", (e) => {
     e.stopPropagation();
 });
 
-
-// --- Inventory Functions ---
-
-const inventory = new InventoryUI({
-    inventoryItems: localSave.inventoryItems,
-});
-
-function findEmptyInventorySlot() {
-    const emptySlot = localSave.inventoryItems.findIndex(item => item === null);
-    return emptySlot;
-}
-
-function dropItem(itemData, position) {
-    const droppedItem = new DroppedItem({
-        itemId: itemData.id,
-        position: {
-            column: position.column,
-            row: position.row
-        },
-    })
-    droppedItems.push(droppedItem);
-}
-
-function tileHasDroppedItem(row, column) {
-    return droppedItems.some(
-        (item) => item.position.row === row && item.position.column === column
-    );
-}
-
-function applyMidPathStartFromNextStep() {
-    if (player.storedPath.length > 0) {
-        player.startRow = tileRow(player.storedPath[0]);
-        player.startColumn = tileColumn(player.storedPath[0]);
-    }
-}
-
-function setWalkTarget(row, column) {
-    player.targetRow = row;
-    player.targetColumn = column;
-    player.generatePathway();
-}
-
-function walkHereFromMenu(row, column) {
-    setWalkTarget(row, column);
-    player.movePlayer();
-    console.log("Walk Here");
-}
-
-function startPlayerAction(row, column, flag, columnOffset = 0) {
-    player.targetRow = row;
-    player.targetColumn = column + columnOffset;
-    player.generatePathway();
-    player[flag] = true;
-}
-
-function startPickUpAt(row, column) {
-    startPlayerAction(row, column, "isPickingUp");
-}
-
-function startMineAt(row, column) {
-    startPlayerAction(row, column, "isMining", -1);
-}
-
-function startAttackGoblinAt(row, column) {
-    startPlayerAction(row, column, "isAttacking", -1);
-}
-
-/** Priority: pick up > mine > attack. Returns true if a primary action was started. */
-function tryPrimaryWorldAction(row, column) {
-    if (tileHasDroppedItem(row, column)) {
-        startPickUpAt(row, column);
-        return true;
-    }
-    for (const obj of worldObjects) {
-        if (!obj.action) continue;
-        if (obj.position.column === column &&
-            obj.position.row === row &&
-            obj.action.canInteract()) {
-            obj.action.onPrimary(row, column);
-            return true;
-        }
-    }
-    return false;
-}
-
-
-// --- Tick Functions ---
-
-function serverTick() {
-    const event = new Event("tick");
-    document.dispatchEvent(event);
-}
-const tickRate = setInterval(serverTick, TICK_RATE);
-
-
-// --- Event Listeners ---
-
-function getActionsForInventorySlot(slot) {
-    inventoryContextMenu.innerHTML = "";
-
-    const actions = [
-        {
-            label: "Drop",
-            handler: () => {
-                let itemId = localSave.inventoryItems[slot];
-                console.log("Item: ", ITEMS[itemId].id);
-                dropItem(ITEMS[itemId], player.position);
-                inventory.inventoryItems[slot] = null;
-                console.log("Dropping item: ", ITEMS[itemId].name);
-                inventoryContextMenu.style.display = 'none';
-            }
-        }
-
-    ]
-    
-    for (const action of actions) {
-        const ul = document.createElement("ul");
-        ul.textContent = action.label;
-        ul.addEventListener("click", action.handler);
-        inventoryContextMenu.appendChild(ul);
-    }
-
-}
-
-
-function getActionsForTile(row, column) {
-    customContextMenu.innerHTML = "";
-    const actions = [
-        { label: "Walk Here", handler: () => { walkHereFromMenu(row, column); } }
-    ];
-
-    if (tileHasDroppedItem(row, column)) {
-        actions.push({ label: "Pick Up", handler: () => startPickUpAt(row, column) });
-    }
-
-    for (const obj of worldObjects) {
-        if (!obj.action) continue;
-        if (obj.position.row === row &&
-            obj.position.column === column &&
-            obj.action.canInteract()) {
-            actions.push({
-                label: obj.action.label,
-                handler: () => obj.action.onPrimary(row, column)
-            });
-            if (obj.action.examineText) {
-                actions.push({
-                    label: "Examine " + obj.action.label.split(" ").slice(1).join(" "),
-                    handler: () => console.log(obj.action.examineText)
-                });
-            }
-        }
-    }
-    for (const action of actions) {
-        const ul = document.createElement("ul");
-        ul.textContent = action.label;
-        ul.addEventListener("click", action.handler);
-        customContextMenu.appendChild(ul);
-    }
-}
-
 addEventListener('mousemove', (e) => {
     const worldPosition = getWorldPosition(e);
+    const slot = getInventorySlotPosition(e);
     const tile = worldToTile(worldPosition.worldX, worldPosition.worldY);
     hoverRow = tile.row;
     hoverColumn = tile.column;
     showActionForTile(hoverRow, hoverColumn);
+
+    const firstAction = getFirstActionForTile(hoverRow, hoverColumn);
+    const firstActionInventory = getFirstActionForInventory(slot);
+    const firstActionEquipment = getFirstActionForEquipment(slot);
+
+    if (firstAction) {
+        hoverTooltip.innerHTML = `<span class = "action-verb"> ${firstAction.verb} </span> <span class = "action-noun">${firstAction.noun}</span>`;
+        hoverTooltip.style.display = 'block';
+        hoverTooltip.style.top = `${e.pageY}px`;
+        hoverTooltip.style.left = `${e.pageX}px`;
+    } 
+    else if (firstActionInventory) {
+        hoverTooltip.innerHTML = `<span class = "action-verb"> ${firstActionInventory.verb} </span> <span class = "action-noun">${firstActionInventory.noun}</span>`;
+        hoverTooltip.style.display = 'block';
+        hoverTooltip.style.top = `${e.pageY}px`;
+        hoverTooltip.style.left = `${e.pageX}px`;
+    } else if (firstActionEquipment) {
+        hoverTooltip.innerHTML = `<span class = "action-verb"> ${firstActionEquipment.verb} </span> <span class = "action-noun">${firstActionEquipment.noun}</span>`;
+        hoverTooltip.style.display = 'block';
+        hoverTooltip.style.top = `${e.pageY}px`;
+        hoverTooltip.style.left = `${e.pageX}px`;
+    } else {
+        hoverTooltip.style.display = 'none';
+    }
 });
 
 addEventListener('click', (e) => {
     if (e.button !== 0) return;
     if (e.target.closest("#combatQuizPanel")) return;
-    if (getInventorySlotPosition(e) >= 0) return;
+    if (isClickOnPanel(e)) {
+        handlePanelClick(e);
+        return;
+    }
 
     const worldPosition = getWorldPosition(e);
     applyMidPathStartFromNextStep();
@@ -412,7 +291,6 @@ inventoryContextMenu.addEventListener('click', (e) => {
     e.stopPropagation();
 });
 
-
 addEventListener('contextmenu', (e) => {
     e.preventDefault();
 
@@ -426,6 +304,9 @@ addEventListener('contextmenu', (e) => {
         inventoryContextMenu.style.top = `${e.pageY}px`;
         inventoryContextMenu.style.left = `${e.pageX}px`;
         inventoryContextMenu.style.display = 'block';
+    }
+    else if (isClickOnPanel(e)) {
+        return;
     }
     else {
         const worldPosition = getWorldPosition(e);
@@ -442,6 +323,15 @@ addEventListener('click', (e) => {
     inventoryContextMenu.style.display = 'none';
 });
 
+
+// --- Tick ---
+
+function serverTick() {
+    const event = new Event("tick");
+    document.dispatchEvent(event);
+}
+const tickRate = setInterval(serverTick, TICK_RATE);
+
 document.addEventListener("tick", (e) => {
     player.movePlayer();
     player.mineRock();
@@ -450,7 +340,6 @@ document.addEventListener("tick", (e) => {
     respawnTimer();
     saveLocalSave();
 });
-
 
 
 // --- Game Loop ---
@@ -472,8 +361,8 @@ function animate() {
 
     xpDrops = xpDrops.filter(xpDrop => !xpDrop.isDone);
 
-    inventory.position.x = cameraX + 440;
-    inventory.position.y = cameraY + 170;
+    sidePanel.position.x = cameraX + SIDE_PANEL_WORLD_X;
+    sidePanel.position.y = cameraY + SIDE_PANEL_WORLD_Y;
 
     ctx.save();
     ctx.scale(ZOOM, ZOOM);
@@ -486,7 +375,7 @@ function animate() {
     if (!goblin.isDead) {
         goblin.draw();
     }
-    inventory.draw();
+    sidePanel.draw();
     droppedItems.forEach(droppedItem => {
         droppedItem.draw();
     });
@@ -504,7 +393,5 @@ function animate() {
     // });
 
     ctx.restore();
-
-
 }
 animate();

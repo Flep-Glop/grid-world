@@ -1,6 +1,6 @@
 // this script is used to swap the assets in the game
 
-let assetSwapEnabled = true;
+let assetSwapEnabled = false;
 
 function enableAssetSwap() {
     if (!assetSwapEnabled) return;

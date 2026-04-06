@@ -7,7 +7,7 @@ const ITEMS = {
         name: "Bones",
         description: "A pile of bones.",
         type: "miscellaneous",
-        render: { column: 14, row: 4 }
+        render: { column: 13, row: 0 }
     },
     leather: {
         id: "leather",
