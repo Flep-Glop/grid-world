@@ -111,6 +111,7 @@ const rockImage = new Image();
 rockImage.src = "img/rock.png";
 
 let playerSprites = preloadImages(playerAnimations);
+let goblinSprites = preloadImages(goblinAnimations);
 
 
 // --- Game Objects ---
@@ -131,9 +132,6 @@ const player = new Player({
     position: {
         row: localSave.position.row,
         column: localSave.position.column
-    },
-    frames: {
-        max: 4
     },
     offset: {
         x: 11,
@@ -181,7 +179,8 @@ const snatcher = new Enemy({
 
 const goblin = new Enemy({
     enemyId: "goblin",
-    image: goblinImage,
+    sprites: goblinSprites,
+    initialState: "idle",
     name: "Goblin",
     position: { column: 35, row: 8 },
     offset: {

@@ -124,9 +124,9 @@ function rollDrop(dropTable) {
     }
 }
 
-function preloadImages(playerAnimations) {
+function preloadImages(animations) {
     const loaded = {};
-    for (const [key, config] of Object.entries(playerAnimations)) {
+    for (const [key, config] of Object.entries(animations)) {
         const img = new Image();
         img.src = config.src;
         loaded[key] = {

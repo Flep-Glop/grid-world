@@ -1,6 +1,6 @@
 // this script is used to swap the assets in the game
 
-let assetSwapEnabled = false;
+let assetSwapEnabled = true;
 
 function enableAssetSwap() {
     if (!assetSwapEnabled) return;
@@ -18,7 +18,9 @@ function enableAssetSwap() {
         attacking: { src: "img/player-simplified.png", frames: { max: 1 } }
     };
     playerSprites = preloadImages(newAnimations);
+    goblinSprites = preloadImages(newAnimations);
     player.sprites = playerSprites;
+    goblin.sprites = goblinSprites;
     player.offset = {
         x: 0,
         y: 0

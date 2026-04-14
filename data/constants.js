@@ -54,6 +54,12 @@ const playerAnimations = {
     attacking: { src: "img/player-sword.png", frames: { max: 6 } }
 };
 
+const goblinAnimations = {
+    idle: { src: "img/goblin-idle.png", frames: { max: 12 } },
+    walking: { src: "img/goblin-walk.png", frames: { max: 8 } },
+    attacking: { src: "img/goblin-sword.png", frames: { max: 6 } }
+};
+
 const DROP_TABLE = {
     goblin: {
         alwaysDrop: "bones",

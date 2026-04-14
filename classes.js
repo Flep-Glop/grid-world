@@ -1,13 +1,46 @@
 class Sprite {
-    constructor({ image, position, frames = { max: 1 } }) {
+    constructor({ image, position, frames = {}, sprites, initialState, offset = { x: 0, y: 0 } }) {
         this.position = position;
-        this.image = image;
-        this.frames = {...frames, val: 0, elapsed: 0 };
-        
+        this.offset = offset;
+
+        if (sprites) {
+            this.sprites = sprites;
+            this.currentState = initialState || Object.keys(sprites)[0];
+            const initial = this.sprites[this.currentState];
+            this.image = initial.image;
+            this.frames = { max: initial.frames.max, rate: frames.rate || 10, val: 0, elapsed: 0 };
+        } else {
+            this.image = image;
+            this.frames = { max: frames.max || 1, rate: frames.rate || 10, val: 0, elapsed: 0 };
+            this.sprites = null;
+            this.currentState = null;
+        }
+
         this.image.onload = () => {
             this.width = this.image.width / this.frames.max;
             this.height = this.image.height;
         };
+    }
+
+    animate() {
+        if (this.frames.max > 1) {
+            this.frames.elapsed++;
+        }
+        if (this.frames.elapsed % this.frames.rate === 0) {
+            if (this.frames.val < this.frames.max - 1) this.frames.val++;
+            else this.frames.val = 0;
+        }
+    }
+
+    setState(stateName) {
+        if (!this.sprites || this.currentState === stateName) return;
+        const animation = this.sprites[stateName];
+        if (!animation) return;
+        this.frames.max = animation.frames.max;
+        this.frames.val = 0;
+        this.frames.elapsed = 0;
+        this.image = animation.image;
+        this.currentState = stateName;
     }
 
     draw() {
@@ -21,15 +54,8 @@ class Sprite {
             this.position.y,
             this.image.width / this.frames.max,
             this.image.height
-        )
-
-        if (this.frames.max > 1) {
-            this.frames.elapsed++
-        }
-        if (this.frames.elapsed % 10 === 0) {
-            if (this.frames.val < this.frames.max - 1) this.frames.val++
-            else this.frames.val = 0
-        }
+        );
+        this.animate();
     }
 }
 
@@ -229,9 +255,10 @@ class ExperienceDrop {
     }
 }
 
-class Enemy extends InteractiveObject {
-    constructor({ image, enemyId, name, position, totalHealth, attackDamage, dropTable, respawnTimer, action , offset = { x: 0, y: 0 } }) {
-        super({ image, position, action, offset });
+class Enemy extends Sprite {
+    constructor({ image, enemyId, sprites, initialState, name, position, totalHealth, attackDamage, dropTable, respawnTimer, action, offset = { x: 0, y: 0 } }) {
+        super({ image, sprites, initialState, position, offset, frames: { rate: 20 } });
+        this.action = action;
         this.enemyId = enemyId;
         this.totalHealth = totalHealth;
         this.currentHealth = totalHealth;
@@ -241,6 +268,21 @@ class Enemy extends InteractiveObject {
         this.name = name;
         this.isDead = false;
         this.respawnTimer = respawnTimer || 0;
+    }
+
+    draw() {
+        ctx.drawImage(
+            this.image,
+            this.frames.val * (this.image.width / this.frames.max),
+            0,
+            this.image.width / this.frames.max,
+            this.image.height,
+            this.position.column * MAP_TILE_SIZE - this.offset.x,
+            this.position.row * MAP_TILE_SIZE - this.offset.y,
+            this.image.width / this.frames.max,
+            this.image.height
+        );
+        this.animate();
     }
 }
 
@@ -335,26 +377,16 @@ class Pathfinder {
     }
 }
 
-class Player {
+class Player extends Sprite {
     constructor({ sprites, initialState, position, offset, totalHealth, attackDamage }) {
-        this.sprites = sprites;
-        const initial = this.sprites[initialState];
-        this.image = initial.image;
-        this.currentState = initialState;
-        this.frames = { max: initial.frames.max, val: 0, elapsed: 0 };
-        this.position = position;
+        super({ sprites, initialState, position, offset, frames: { rate: 20 } });
         this.startRow = position.row;
         this.startColumn = position.column;
         this.targetRow = 0;
         this.targetColumn = 0;
-        this.offset = offset;
         this.totalHealth = totalHealth;
         this.currentHealth = totalHealth;
         this.attackDamage = attackDamage;
-        this.image.onload = () => {
-            this.width = this.image.width / this.frames.max;
-            this.height = this.image.height;
-        };
 
         this.isMining = false;
         this.isPickingUp = false;
@@ -380,19 +412,6 @@ class Player {
             this.startRow, this.startColumn,
             this.targetRow, this.targetColumn
         );
-    }
-
-    setState(stateName) {
-        if (this.currentState === stateName) return;
-
-        const animation = this.sprites[stateName];
-        if (!animation) return;
-
-        this.frames.max = animation.frames.max;
-        this.frames.val = 0;
-        this.frames.elapsed = 0;
-        this.image = animation.image;
-        this.currentState = stateName;
     }
 
     movePlayer() {
@@ -496,14 +515,8 @@ class Player {
             this.position.row * MAP_TILE_SIZE - this.offset.y + this.interpOffset.y,
             this.image.width / this.frames.max,
             this.image.height
-        )
-        if (this.frames.max > 1) {
-            this.frames.elapsed++
-        }
-        if (this.frames.elapsed % 20 === 0) {
-            if (this.frames.val < this.frames.max - 1) this.frames.val++
-            else this.frames.val = 0
-        }
+        );
+        this.animate();
     }
 }
 
